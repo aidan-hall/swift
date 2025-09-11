@@ -310,6 +310,7 @@ struct BridgedType {
   BRIDGED_INLINE bool hasAnyPack() const;
   BRIDGED_INLINE bool isOrContainsPack(BridgedFunction f) const;
   BRIDGED_INLINE bool isPackElementAddress() const;
+  BRIDGED_INLINE bool containsPackExpansionType() const;
 };
 
 // SIL Bridging
