@@ -1369,6 +1369,11 @@ struct BridgedBuilder{
   SWIFT_IMPORT_UNSAFE BRIDGED_INLINE BridgedInstruction createInitExistentialMetatype(BridgedValue metatype,
                                           BridgedType existentialType,
                                           BridgedConformanceArray conformances) const;
+  SWIFT_IMPORT_UNSAFE BRIDGED_INLINE BridgedInstruction createPackElementGet(
+      BridgedValue packIndex, BridgedValue pack, BridgedType elementType) const;
+  SWIFT_IMPORT_UNSAFE BRIDGED_INLINE BridgedInstruction
+  createPackElementSet(BridgedValue elementValue, BridgedValue packIndex,
+                       BridgedValue pack) const;
   SWIFT_IMPORT_UNSAFE BRIDGED_INLINE BridgedInstruction createMetatype(BridgedCanType instanceType,
                                           BridgedASTType::MetatypeRepresentation representation) const;
   SWIFT_IMPORT_UNSAFE BRIDGED_INLINE BridgedInstruction createEndCOWMutation(BridgedValue instance,
