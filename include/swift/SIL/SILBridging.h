@@ -120,6 +120,8 @@ struct BridgedResultInfo {
   BridgedResultInfo(BridgedCanType type, BridgedResultConvention conv, uint8_t options)
     : type(type), convention(conv), options(options) {}
   swift::SILResultInfo unbridged() const;
+
+  BRIDGED_INLINE BridgedCanType getReturnValueType(BridgedFunction f) const;
 };
 
 struct OptionalBridgedResultInfo {
@@ -166,6 +168,7 @@ struct BridgedParameterInfo {
 
   BRIDGED_INLINE BridgedParameterInfo(swift::SILParameterInfo parameterInfo);
   BRIDGED_INLINE swift::SILParameterInfo unbridged() const;
+  BRIDGED_INLINE BridgedCanType getArgumentType(BridgedFunction f) const;
 };
 
 struct BridgedParameterInfoArray {

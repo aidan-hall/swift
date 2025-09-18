@@ -155,6 +155,10 @@ public struct ResultInfo : CustomStringConvertible {
   public var description: String {
     convention.description + ": " + type.description
   }
+
+  public func getReturnValueType(function: Function) -> CanonicalType {
+    CanonicalType(bridged: self._bridged.getReturnValueType(function.bridged))
+  }
 }
 
 extension FunctionConvention {
@@ -226,6 +230,10 @@ public struct ParameterInfo : CustomStringConvertible {
   
   public func hasOption(_ flag: Flag) -> Bool {
     return options & flag.rawValue != 0
+  }
+
+  public func getArgumentType(function: Function) -> CanonicalType {
+    CanonicalType(bridged: self._bridged.getArgumentType(function.bridged))
   }
 }
 
