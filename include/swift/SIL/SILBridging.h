@@ -319,6 +319,7 @@ struct BridgedType {
   BRIDGED_INLINE bool isOrContainsPack(BridgedFunction f) const;
   BRIDGED_INLINE bool isPackElementAddress() const;
   BRIDGED_INLINE bool containsPackExpansionType() const;
+  SWIFT_IMPORT_UNSAFE BRIDGED_INLINE BridgedCanType getApproximateFormalPackType() const;
 };
 
 // SIL Bridging
@@ -922,6 +923,8 @@ struct BridgedInstruction {
   BRIDGED_INLINE bool ConvertFunctionInst_withoutActuallyEscaping() const;
   SWIFT_IMPORT_UNSAFE BRIDGED_INLINE BridgedCanType TypeValueInst_getParamType() const;
   BRIDGED_INLINE BridgedCanType PackLengthInst_getPackType() const;
+  BRIDGED_INLINE SwiftInt ScalarPackIndexInst_getComponentIndex() const;
+  SWIFT_IMPORT_UNSAFE BRIDGED_INLINE BridgedCanType AnyPackIndexInst_getIndexedPackType() const;
 
   // =========================================================================//
   //                   VarDeclInst and DebugVariableInst
@@ -1373,6 +1376,8 @@ struct BridgedBuilder{
   SWIFT_IMPORT_UNSAFE BRIDGED_INLINE BridgedInstruction createInitExistentialMetatype(BridgedValue metatype,
                                           BridgedType existentialType,
                                           BridgedConformanceArray conformances) const;
+  SWIFT_IMPORT_UNSAFE BRIDGED_INLINE BridgedInstruction createScalarPackIndex(
+      SwiftInt componentIndex, BridgedCanType indexedPackType) const;
   SWIFT_IMPORT_UNSAFE BRIDGED_INLINE BridgedInstruction createPackElementGet(
       BridgedValue packIndex, BridgedValue pack, BridgedType elementType) const;
   SWIFT_IMPORT_UNSAFE BRIDGED_INLINE BridgedInstruction
