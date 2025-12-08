@@ -51,19 +51,19 @@
 ///     space (`" "`).
 ///   - terminator: The string to print after all items have been printed. The
 ///     default is a newline (`"\n"`).
-public func print(
-  _ items: Any...,
+public func print<each Item>(
+  _ items: repeat each Item,
   separator: String = " ",
   terminator: String = "\n"
 ) {
   if let hook = _playgroundPrintHook {
     var output = _TeeStream(left: "", right: _Stdout())
-    _print(items, separator: separator, terminator: terminator, to: &output)
+    _print(repeat each items, separator: separator, terminator: terminator, to: &output)
     hook(output.left)
   }
   else {
     var output = _Stdout()
-    _print(items, separator: separator, terminator: terminator, to: &output)
+    _print(repeat each items, separator: separator, terminator: terminator, to: &output)
   }
 }
 
@@ -160,13 +160,13 @@ public func debugPrint(
 ///     default is a newline (`"\n"`).
 ///   - output: An output stream to receive the text representation of each
 ///     item.
-public func print<Target: TextOutputStream>(
-  _ items: Any...,
+public func print<each Item, Target: TextOutputStream>(
+  _ items: repeat each Item,
   separator: String = " ",
   terminator: String = "\n",
   to output: inout Target
 ) {
-  _print(items, separator: separator, terminator: terminator, to: &output)
+  _print(repeat each items, separator: separator, terminator: terminator, to: &output)
 }
 
 /// Writes the textual representations of the given items most suitable for
@@ -216,8 +216,8 @@ public func debugPrint<Target: TextOutputStream>(
   _debugPrint(items, separator: separator, terminator: terminator, to: &output)
 }
 
-internal func _print<Target: TextOutputStream>(
-  _ items: [Any],
+internal func _print<each Item, Target: TextOutputStream>(
+  _ items: repeat each Item,
   separator: String = " ",
   terminator: String = "\n",
   to output: inout Target
@@ -225,7 +225,7 @@ internal func _print<Target: TextOutputStream>(
   var prefix = ""
   output._lock()
   defer { output._unlock() }
-  for item in items {
+  for item in repeat each items {
     output.write(prefix)
     _print_unlocked(item, &output)
     prefix = separator
