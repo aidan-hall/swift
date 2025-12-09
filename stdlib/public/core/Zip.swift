@@ -42,10 +42,10 @@
 /// - Returns: A sequence of tuple pairs, where the elements of each pair are
 ///   corresponding elements of `sequence1` and `sequence2`.
 @inlinable // generic-performance
-public func zip<Sequence1, Sequence2>(
-  _ sequence1: Sequence1, _ sequence2: Sequence2
-) -> Zip2Sequence<Sequence1, Sequence2> {
-  return Zip2Sequence(sequence1, sequence2)
+public func zip<each SequenceN>(
+  _ sequences: repeat each SequenceN
+) -> Zip2Sequence<repeat each SequenceN> {
+  return Zip2Sequence(repeat each sequences)
 }
 
 /// A sequence of pairs built out of two underlying sequences.
@@ -68,17 +68,15 @@ public func zip<Sequence1, Sequence2>(
 ///     // Prints "three: 3"
 ///     // Prints "four: 4"
 @frozen // generic-performance
-public struct Zip2Sequence<Sequence1: Sequence, Sequence2: Sequence> {
-  @usableFromInline // generic-performance
-  internal let _sequence1: Sequence1
-  @usableFromInline // generic-performance
-  internal let _sequence2: Sequence2
+public struct Zip2Sequence<each Seq: Sequence> {
+  @usableFromInline
+  internal let _sequences: repeat each Seq
 
   /// Creates an instance that makes pairs of elements from `sequence1` and
   /// `sequence2`.
   @inlinable // generic-performance
-  internal init(_ sequence1: Sequence1, _ sequence2: Sequence2) {
-    (_sequence1, _sequence2) = (sequence1, sequence2)
+  internal init(_ sequences: repeat each Seq) {
+    _sequences = sequences
   }
 }
 
@@ -87,26 +85,23 @@ extension Zip2Sequence {
   @frozen // generic-performance
   public struct Iterator {
     @usableFromInline // generic-performance
-    internal var _baseStream1: Sequence1.Iterator
-    @usableFromInline // generic-performance
-    internal var _baseStream2: Sequence2.Iterator
+    internal var _baseStreams: repeat (each Seq.Iterator)
     @usableFromInline // generic-performance
     internal var _reachedEnd: Bool = false
 
     /// Creates an instance around a pair of underlying iterators.
     @inlinable // generic-performance
     internal init(
-    _ iterator1: Sequence1.Iterator, 
-    _ iterator2: Sequence2.Iterator
+      _ iterators: repeat (each Seq.Iterator)
     ) {
-      (_baseStream1, _baseStream2) = (iterator1, iterator2)
+      _baseStreams = iterators
     }
   }
 }
 
 extension Zip2Sequence.Iterator: IteratorProtocol {
   /// The type of element returned by `next()`.
-  public typealias Element = (Sequence1.Element, Sequence2.Element)
+  public typealias Element = (repeat each Seq.Element)
 
   /// Advances to the next element and returns it, or `nil` if no next element
   /// exists.
@@ -124,37 +119,30 @@ extension Zip2Sequence.Iterator: IteratorProtocol {
       return nil
     }
 
-    guard let element1 = _baseStream1.next(),
-          let element2 = _baseStream2.next() else {
+    guard let elements = repeat (each _baseStreams.next()) else {
       _reachedEnd = true
       return nil
     }
 
-    return (element1, element2)
+    return (repeat each elements)
   }
 }
 
 extension Zip2Sequence: Sequence {
-  public typealias Element = (Sequence1.Element, Sequence2.Element)
+  public typealias Element = (repeat (each Seq).Element)
 
   /// Returns an iterator over the elements of this sequence.
   @inlinable // generic-performance
   public __consuming func makeIterator() -> Iterator {
-    return Iterator(
-      _sequence1.makeIterator(),
-      _sequence2.makeIterator())
+    return Iterator(repeat (each _sequences.makeIterator()))
   }
 
   @inlinable // generic-performance
   public var underestimatedCount: Int {
-    return Swift.min(
-      _sequence1.underestimatedCount,
-      _sequence2.underestimatedCount
-    )
+    // TODO: This should *not* actually allocate an Array.
+    return [repeat (each _sequences.underestimatedCount)].min()
   }
 }
 
-extension Zip2Sequence: Sendable where Sequence1: Sendable,
-                                       Sequence2: Sendable { }
-extension Zip2Sequence.Iterator: Sendable where Sequence1.Iterator: Sendable,
-                                                Sequence2.Iterator: Sendable { }
+extension Zip2Sequence: Sendable where repeat each Seq: Sendable { }
+extension Zip2Sequence.Iterator: Sendable where repeat each Seq.Iterator: Sendable { }
