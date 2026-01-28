@@ -19,7 +19,7 @@ func transfer(_ ne: NE) -> NE {
 }
 
 @_lifetime(copy ne)
-func applyAnnotatedTransfer(ne: NE, @_lifetime(0) transfer: (NE) -> NE) -> NE { // expected-error{{'@_lifetime' attribute cannot be applied to this declaration}}
+func applyAnnotatedTransfer(ne: NE, @_lifetime(copy ne) transfer: (_ ne: NE) -> NE) -> NE { // expected-error{{'@_lifetime' attribute cannot be applied to this declaration}}
   transfer(ne)
 }
 
