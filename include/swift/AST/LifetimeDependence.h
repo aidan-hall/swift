@@ -379,6 +379,10 @@ public:
              ArrayRef<LifetimeTypeAttr *> lifetimeAttributes, DeclContext *dc,
              GenericEnvironment *env);
 
+  /// Determine whether Type t is "unknown", meaning we cannot safely determine
+  /// whether it is Escapable by calling TypeBase::isEscapable.
+  static bool isTypeUnknown(Type t);
+
   /// Compute a LifetimeDependenceInfo list for the uncurried form of a curried
   /// function whose inner type has LifetimeDependenceInfo list
   /// 'inner'.
@@ -406,8 +410,35 @@ public:
     return !(*this == other);
   }
   
+  /// Whether the other LifetimeDependenceInfo is at least as restrictive as
+  /// this. If so, a parameter or result with the other LifetimeDependenceInfo
+  /// can be assumed to satisfy this LifetimeDependenceInfo's dependencies.
+  ///
+  /// For inherited/copied dependencies, only the dependence sources that are
+  /// selected in the nonEscapableMask (with the bit at their index set) need to
+  /// be present in 'other' for the dependence to match. This is necessary
+  /// because inherited dependencies on Escapable parameters should be ignored.
+  ///
+  /// NOTE: Neither this nor operator== consider conditionally addressable
+  /// dependencies.
+  bool convertibleTo(const LifetimeDependenceInfo &other,
+                     const SmallBitVector &nonEscapableMask) const;
+
   SWIFT_DEBUG_DUMPER(dump());
 };
+
+/// Check whether a function with lifetime dependencies `from` can safely be
+/// treated as one with lifetime dependencies `to`.
+///
+/// Calls `LifetimeDependenceInfo::convertibleTo` to compare entries.
+///
+/// This compares members of from and to with the same targetIndex, so the
+/// result is independent of their order, but it takes O(n^2) time. Considering
+/// that n <= 2 for most functions, the function should still be reasonably
+/// fast.
+bool matchLifetimeDependencies(const ArrayRef<LifetimeDependenceInfo> from,
+                               const ArrayRef<LifetimeDependenceInfo> to,
+                               const SmallBitVector &nonEscapableMask);
 
 std::optional<LifetimeDependenceInfo>
 getLifetimeDependenceFor(ArrayRef<LifetimeDependenceInfo> lifetimeDependencies,

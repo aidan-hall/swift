@@ -3253,21 +3253,26 @@ ConstraintSystem::matchFunctionTypes(FunctionType *func1, FunctionType *func2,
   // one without that lifetime dependency when the substituted type is
   // Escapable.
   //
-  // TODO: There should also be a subtype relationship from less-constrained to
-  // more-constrained lifetime dependencies.
+  // There is also a subtype relationship from less-constrained to
+  // more-constrained lifetime dependencies (see
+  // LifetimeDependenceInfo::convertibleTo).
   if (func1->getLifetimeDependencies() != func2->getLifetimeDependencies()) {
     auto escapable = getASTContext().getProtocol(KnownProtocolKind::Escapable)
       ->getDeclaredType();
+
+    // Do no masking: we instead add a constraint that lifetime targets with
+    // mismatched dependencies must conform to Escapable.
+    const SmallBitVector nonEscapableMask(func1->getNumParams(), true);
 
     for (auto &fromDep : func1->getLifetimeDependencies()) {
       auto toDep = func2->getLifetimeDependenceFor(fromDep.getTargetIndex());
       if (toDep) {
         // If a dependency is present for the same target in both types, then
         // the dependency must match.
-        if (fromDep != *toDep) {
+        if (!fromDep.convertibleTo(*toDep, nonEscapableMask)) {
           return getTypeMatchFailure(locator);
         }
-        
+
         continue;
       }
       

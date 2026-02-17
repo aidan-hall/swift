@@ -908,6 +908,68 @@ RequirementMatch swift::matchWitness(
         return RequirementMatch(witness, MatchKind::AsyncConflict);
       }
 
+      {
+        // Check that lifetime dependencies match.
+
+        auto getLifetimes = [](ValueDecl *decl, AnyFunctionType *type) {
+          if (auto *afd = dyn_cast<AbstractFunctionDecl>(decl)) {
+            // Lack of lifetimes is equivalent to an empty list of lifetimes.
+            return afd->getLifetimeDependencies().value_or(
+                ArrayRef<LifetimeDependenceInfo>{});
+          }
+          return type->getLifetimeDependencies();
+        };
+
+        auto witnessLifetimes = getLifetimes(witness, witnessFnType);
+        auto reqLifetimes = getLifetimes(req, reqFnType);
+
+        // Ignore lifetime dependencies with Escapable targets.
+        SmallVector<LifetimeDependenceInfo, 2> filteredWitnessLifetimes;
+        const auto numParams = witnessFnType->getNumParams();
+
+        Type paramsSizePlusOneType, paramsSizeType;
+        bool isInstanceMethod = false;
+        if (auto *afd = dyn_cast<AbstractFunctionDecl>(witness);
+            afd && afd->isInstanceMethod()) {
+          auto selfDecl = afd->getImplicitSelfDecl();
+          paramsSizeType = selfDecl->toFunctionParam().getPlainType();
+          paramsSizePlusOneType = witnessFnType->getResult();
+          isInstanceMethod = true;
+        } else {
+          paramsSizeType = paramsSizePlusOneType = witnessFnType->getResult();
+        }
+
+        const auto getTypeAtLifetimeIndex = [&](unsigned index) {
+          if (index < numParams)
+            return witnessFnType->getParams()[index].getPlainType();
+          if (index == witnessFnType->getNumParams())
+            return paramsSizeType;
+          if(index == numParams + 1)
+            return paramsSizePlusOneType;
+          llvm_unreachable("Invalid lifetime source or target index");
+        };
+
+        // A mask for ~Escapable parameters (including self).
+        // This matches the representation of lifetime dependence sources.
+        SmallBitVector nonEscapableMask(numParams + isInstanceMethod);
+        for (auto i : range(nonEscapableMask.size())) {
+          auto type = getTypeAtLifetimeIndex(i);
+          // If a parameter's type is unknown, it is safer to keep it in
+          // consideration, since it could be ~Escapable in some contexts.
+          nonEscapableMask[i] = LifetimeDependenceInfo::isTypeUnknown(type) ||
+                                not type->isEscapable();
+        }
+
+        filterEscapableLifetimeDependencies(
+            GenericSignature(), witnessLifetimes, filteredWitnessLifetimes,
+            getTypeAtLifetimeIndex);
+
+        if (!matchLifetimeDependencies(filteredWitnessLifetimes, reqLifetimes,
+                                       nonEscapableMask)) {
+          return RequirementMatch(witness, MatchKind::LifetimeConflict);
+        }
+      }
+
       if (!reqThrownError) {
         // Save the thrown error types of the requirement and witness so we
         // can check them later.
@@ -3324,6 +3386,10 @@ diagnoseMatch(ModuleDecl *module, NormalProtocolConformance *conformance,
       diags.diagnose(witness, diag::protocol_witness_borrow_mutate_conflict,
                      diagMsg);
     }
+    break;
+  }
+  case MatchKind::LifetimeConflict: {
+    diags.diagnose(match.Witness, diag::protocol_witness_lifetime_conflict);
     break;
   }
   }

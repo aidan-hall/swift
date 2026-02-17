@@ -36,20 +36,6 @@
 
 using namespace swift;
 
-/// Determine whether Type t is "unknown", meaning we cannot safely determine
-/// whether it is Escapable by calling TypeBase::isEscapable.
-static bool isTypeUnknown(Type t) {
-  // These types would hit an assertion in
-  // TypeBase::computeInvertibleConformances.
-  if (t->hasUnboundGenericType() || t->hasTypeParameter())
-    return true;
-  // This type would hit an assertion in checkRequirements.
-  if (t->hasTypeVariable())
-    return true;
-
-  return false;
-}
-
 std::string LifetimeDescriptor::getString() const {
   switch (kind) {
   case DescriptorKind::Named: {
@@ -107,6 +93,23 @@ std::string LifetimeEntry::getString() const {
 }
 
 namespace swift {
+bool matchLifetimeDependencies(const ArrayRef<LifetimeDependenceInfo> from,
+                               const ArrayRef<LifetimeDependenceInfo> to,
+                               const SmallBitVector &nonEscapableMask) {
+  // If from and to are the same array, they naturally match. This case should
+  // be reasonably common because lifetime dependence info is canonicalized.
+  if (from.data() == to.data() && from.size() == to.size())
+    return true;
+
+  for (const auto &fromDep : from) {
+    // For each LifetimeDependenceInfo in 'from', there must be one in 'to' that
+    // satisfies it.
+    const auto toDep = getLifetimeDependenceFor(to, fromDep.getTargetIndex());
+    if (!toDep || !fromDep.convertibleTo(*toDep, nonEscapableMask))
+      return false;
+  }
+  return true;
+}
 
 std::optional<LifetimeDependenceInfo>
 getLifetimeDependenceFor(ArrayRef<LifetimeDependenceInfo> lifetimeDependencies,
@@ -165,6 +168,18 @@ getNameForParsedLifetimeDependenceKind(ParsedLifetimeDependenceKind kind) {
 }
 
 } // namespace swift
+
+bool LifetimeDependenceInfo::isTypeUnknown(Type t) {
+  // These types would hit an assertion in
+  // TypeBase::computeInvertibleConformances.
+  if (t->hasUnboundGenericType() || t->hasTypeParameter())
+    return true;
+  // This type would hit an assertion in checkRequirements.
+  if (t->hasTypeVariable())
+    return true;
+
+  return false;
+}
 
 std::string LifetimeDependenceInfo::getString() const {
   std::string lifetimeDependenceString = "@lifetime(";
@@ -689,7 +704,8 @@ public:
     // Even if there were no explicit lifetime entries, we still need to
     // diagnose failed inference if a parameter or the result was ~Escapable.
     const auto isNonEscapableSafe = [](Type t) {
-      return !isTypeUnknown(t) && isDiagnosedNonEscapable(t);
+      return !LifetimeDependenceInfo::isTypeUnknown(t) &&
+             isDiagnosedNonEscapable(t);
     };
     const bool shouldDiagnose =
         !lifetimeEntries.empty() ||
@@ -700,14 +716,14 @@ public:
         isNonEscapableSafe(resultTy);
     bool unknownTypeFound = false;
     for (const auto &paramInfo : parameterInfos) {
-      if (isTypeUnknown(paramInfo.typeInContext)) {
+      if (LifetimeDependenceInfo::isTypeUnknown(paramInfo.typeInContext)) {
         unknownTypeFound = true;
         if (shouldDiagnose)
           diagnose(paramInfo.loc, diag::lifetime_dependence_unknown_type,
                    "parameter");
       }
     }
-    if (isTypeUnknown(resultTy)) {
+    if (LifetimeDependenceInfo::isTypeUnknown(resultTy)) {
       unknownTypeFound = true;
       if (shouldDiagnose)
         diagnose(returnLoc, diag::lifetime_dependence_unknown_type, "result");
@@ -2070,6 +2086,61 @@ ArrayRef<LifetimeDependenceInfo> LifetimeDependenceInfo::uncurry(
   }
 
   return ctx.AllocateCopy(uncurried);
+}
+
+bool LifetimeDependenceInfo::convertibleTo(
+    const LifetimeDependenceInfo &other,
+    const SmallBitVector &nonEscapableMask) const {
+  // We ignore the "isFromAnnotation" flag because it should not affect lifetime
+  // checking.
+
+  // The target must be the same.
+  if (this->getTargetIndex() != other.getTargetIndex()) {
+    return false;
+  }
+
+  // Immortal lifetimes are the least restrictive, so only immortal lifetimes
+  // can convert to them.
+  if (other.isImmortal()) {
+    return this->isImmortal();
+  }
+
+  // Accordingly, immortal lifetimes can convert to any non-immortal lifetimes.
+  if (this->isImmortal()) {
+    return true;
+  }
+
+  const auto isSubset = [&](IndexSubset *from, IndexSubset *to,
+                            bool maskNonEscapableSources) {
+    // The empty set is a subset of every set, and every set is a subset of
+    // itself.
+    if (!from || from == to)
+      return true;
+
+    // Check whether from is a subset of to after applying the ~Escapable mask.
+    const auto nonEscapableSources =
+        maskNonEscapableSources ? from->getBitVector() & nonEscapableMask
+                                : from->getBitVector();
+    // Again, the empty set is a subset of every set.
+    if (nonEscapableSources.none())
+      return true;
+
+    // The set 'from' is non-empty, so it cannot be a subset of an empty 'to'.
+    if (!to)
+      return false;
+
+    // If nonEscapableSources has any bits that are not set in 'to's bit vector,
+    // those correspond to ~Escapable dependence sources 'to' doesn't have,
+    // indicating that 'from' is not a subset of 'to'.
+    return not nonEscapableSources.test(to->getBitVector());
+  };
+
+  return isSubset(this->getInheritIndices(), other.getInheritIndices(),
+                  /*maskNonEscapableSources=*/true) &&
+         isSubset(this->getAddressableIndices(), other.getAddressableIndices(),
+                  /*maskNonEscapableSources=*/false) &&
+         isSubset(this->getScopeIndices(), other.getScopeIndices(),
+                  /*maskNonEscapableSources=*/false);
 }
 
 void LifetimeDependenceInfo::dump() const {
