@@ -208,6 +208,13 @@ std::string LifetimeDependenceInfo::getString() const {
   };
   // Unlike the AST printer, there is no need check isDefaultSuppressed() for
   // SIL printing because SIL does not assume any defaults.
+  if (dependsOnClosureContext()) {
+    if (!isFirstSpecifier) {
+      lifetimeDependenceString += ", ";
+    }
+    lifetimeDependenceString += "self";
+    isFirstSpecifier = false;
+  }
   if (hasImmortalSpecifier()) {
     if (!isFirstSpecifier) {
       lifetimeDependenceString += ", ";
@@ -232,6 +239,7 @@ std::string LifetimeDependenceInfo::getString() const {
 void LifetimeDependenceInfo::Profile(llvm::FoldingSetNodeID &ID) const {
   ID.AddBoolean(hasImmortalSpecifier());
   ID.AddBoolean(isFromAnnotation());
+  ID.AddBoolean(dependsOnClosureContext());
   ID.AddInteger(targetIndex);
   if (inheritLifetimeParamIndices) {
     ID.AddInteger((uint8_t)LifetimeDependenceKind::Inherit);
@@ -321,22 +329,24 @@ struct LifetimeDependenceBuilder {
   struct TargetDeps {
     SmallBitVector inheritIndices;
     SmallBitVector scopeIndices;
-    HasAnnotation hasAnnotationStatus;
     TargetKind targetKind;
-    bool hasImmortalSpecifier = false;
+    LifetimeDependenceInfo::Flags flags;
 
     TargetDeps(HasAnnotation hasAnnotation, TargetKind targetKind,
                unsigned capacity)
         : inheritIndices(capacity), scopeIndices(capacity),
-          hasAnnotationStatus(hasAnnotation), targetKind(targetKind) {}
+          targetKind(targetKind),
+          flags{.isFromAnnotation =
+                    (hasAnnotation == HasAnnotation::Annotated)} {}
 
     bool empty() const {
-      return !(hasImmortalSpecifier || inheritIndices.any()
-               || scopeIndices.any());
+      return !(flags.hasImmortalSpecifier ||
+               flags.dependsOnClosureContext || inheritIndices.any() ||
+               scopeIndices.any());
     }
 
     bool hasAnnotation() const {
-      return hasAnnotationStatus == HasAnnotation::Annotated;
+      return flags.isFromAnnotation;
     }
 
     bool isInout() const {
@@ -346,7 +356,7 @@ struct LifetimeDependenceBuilder {
     void addIfNew(unsigned sourceIndex, LifetimeDependenceKind kind) {
       // Some inferrence rules may attempt to add an inherit dependency after a
       // scope dependency (accessor wrapper + getter method).
-      if (hasImmortalSpecifier || inheritIndices[sourceIndex]
+      if (flags.hasImmortalSpecifier || inheritIndices[sourceIndex]
           || scopeIndices[sourceIndex]) {
         return;
       }
@@ -362,9 +372,13 @@ struct LifetimeDependenceBuilder {
   };
 
   const unsigned resultIndex;
+  const bool shouldInferDependenceOnClosureContext;
   llvm::SmallMapVector<unsigned, TargetDeps, 4> depsArray;
 
-  LifetimeDependenceBuilder(unsigned resultIndex): resultIndex(resultIndex) {}
+  LifetimeDependenceBuilder(unsigned resultIndex,
+                            bool shouldInferDependenceOnClosureContext)
+      : resultIndex(resultIndex), shouldInferDependenceOnClosureContext(
+                                      shouldInferDependenceOnClosureContext) {}
 
 public:
   // True if the builder is uninitialized. This may, however, be false even if
@@ -392,24 +406,38 @@ public:
     return getTargetDepsOrNull(targetIndex) != nullptr;
   }
 
+  void inferDependenceOnClosureContext(unsigned targetIndex, TargetDeps &deps) {
+    if (shouldInferDependenceOnClosureContext && targetIndex == resultIndex)
+      deps.flags.dependsOnClosureContext = true;
+  }
+  
   TargetDeps *createAnnotatedTargetDeps(unsigned targetIndex) {
-    auto iterAndInserted =
+    auto [iter, inserted] =
       depsArray.try_emplace(targetIndex, HasAnnotation::Annotated,
                             targetKindForIndex(targetIndex), sourceIndexCap());
-    if (!iterAndInserted.second)
+    if (!inserted)
       return nullptr;
 
-    return &iterAndInserted.first->second;
+    inferDependenceOnClosureContext(targetIndex, iter->second);
+
+    return &iter->second;
   }
 
   // Check this before diagnosing any broken inference to avoid diagnosing a
   // target that has an explicit annotation.
   TargetDeps *getInferredTargetDeps(unsigned targetIndex) {
-    auto iter = depsArray.try_emplace(targetIndex, HasAnnotation::Inferred,
-                                      targetKindForIndex(targetIndex),
-                                      sourceIndexCap()).first;
+    auto [iter, inserted] = depsArray.try_emplace(
+        targetIndex, HasAnnotation::Inferred, targetKindForIndex(targetIndex),
+        sourceIndexCap());
+    
     auto &deps = iter->second;
-    return deps.hasAnnotation() ? nullptr : &deps;
+    if (deps.hasAnnotation())
+      return nullptr;
+    
+    if (inserted)
+      inferDependenceOnClosureContext(targetIndex, deps);
+    
+    return &deps;
   }
 
   void inferDependency(unsigned targetIndex, unsigned sourceIndex,
@@ -426,7 +454,7 @@ public:
                             TargetKind::Inout, sourceIndexCap()).first;
     // An immortal specifier erases any inferred inout dependency;
     // other annotations do not.
-    if (!iter->second.hasImmortalSpecifier) {
+    if (!iter->second.flags.hasImmortalSpecifier) {
       iter->second.addIfNew(paramIndex, LifetimeDependenceKind::Inherit);
     }
   }
@@ -451,20 +479,18 @@ public:
       IndexSubset *inheritIndices = nullptr;
       if (deps.inheritIndices.any()) {
         inheritIndices = IndexSubset::get(ctx, deps.inheritIndices);
-        ASSERT(!deps.hasImmortalSpecifier || deps.isInout() &&
+        ASSERT(!deps.flags.hasImmortalSpecifier || deps.isInout() &&
                "cannot combine immortal lifetime with parameter dependency");
       }
       IndexSubset *scopeIndices = nullptr;
       if (deps.scopeIndices.any()) {
         scopeIndices = IndexSubset::get(ctx, deps.scopeIndices);
-        ASSERT(!deps.hasImmortalSpecifier || deps.isInout() &&
+        ASSERT(!deps.flags.hasImmortalSpecifier || deps.isInout() &&
                "cannot combine immortal lifetime with parameter dependency");
       }
       lifetimeDependencies.push_back(LifetimeDependenceInfo(
           /*inheritLifetimeParamIndices*/ inheritIndices,
-          /*scopeLifetimeParamIndices*/ scopeIndices, targetIndex,
-          /*hasImmortalSpecifier*/ deps.hasImmortalSpecifier,
-          /*isFromAnnotation*/ deps.hasAnnotation()));
+          /*scopeLifetimeParamIndices*/ scopeIndices, targetIndex, deps.flags));
     }
     if (lifetimeDependencies.empty()) {
       return std::nullopt;
@@ -656,7 +682,8 @@ public:
         resultTy(afd->mapTypeIntoEnvironment(getResultOrYieldInterface(afd))),
         returnLoc(getReturnLoc(afd)),
         implicitSelfParamInfo(getSelfParamInfo(afd)),
-        depBuilder(resultIndex),
+        depBuilder(resultIndex,
+                   /*shouldInferDependenceOnClosureContext=*/true),
         isImplicit(afd->isImplicit()),
         isInit(isa<ConstructorDecl>(afd)),
         hasUnsafeNonEscapableResult(
@@ -680,7 +707,8 @@ public:
                                                      funcType->getResult())),
         returnLoc(funcRepr->getResultTypeRepr()->getLoc()),
         implicitSelfParamInfo(std::nullopt),
-        depBuilder(resultIndex),
+        depBuilder(resultIndex,
+                   /*shouldInferDependenceOnClosureContext=*/false),
         isImplicit(false),
         isInit(false),
         hasUnsafeNonEscapableResult(false) {}
@@ -809,7 +837,8 @@ public:
   static std::optional<llvm::ArrayRef<LifetimeDependenceInfo>>
   checkEnumElementDecl(EnumElementDecl *eed) {
     auto const resultIndex = getResultIndex(eed);
-    LifetimeDependenceBuilder depBuilder(resultIndex);
+    LifetimeDependenceBuilder depBuilder(resultIndex,
+                                         /*shouldInferDependenceOnClosureContext=*/false);
     auto *parentEnum = eed->getParentEnum();
     auto enumType = parentEnum->mapTypeIntoEnvironment(
       parentEnum->getDeclaredInterfaceType());
@@ -1387,7 +1416,7 @@ protected:
                                 LifetimeDescriptor source) {
     if (source.isImmortalSpecifier()) {
       // Record the immortal dependency even if it is invalid to suppress other diagnostics.
-      deps.hasImmortalSpecifier = true;
+      deps.flags.hasImmortalSpecifier = true;
       auto immortalParam =
           llvm::find_if(parameterInfos, [](auto const &paramInfo) {
             return paramInfo.param.getInternalLabel().is("immortal");
@@ -1438,7 +1467,7 @@ protected:
                             unsigned paramIndexToSet,
                             LifetimeDependenceKind lifetimeKind) {
     // @_lifetime(target: immortal, copy source) is allowed for inout targets.
-    if (deps.hasImmortalSpecifier && !deps.isInout()) {
+    if (deps.flags.hasImmortalSpecifier && !deps.isInout()) {
       diagnose(descriptor.getLoc(), diag::lifetime_dependence_immortal_alone);
       return;
     }
@@ -2080,9 +2109,9 @@ ArrayRef<LifetimeDependenceInfo> LifetimeDependenceInfo::uncurry(
     const auto targetIndex = (innerDep.getTargetIndex() == numInnerParams)
                                  ? numUncurriedParams
                                  : innerDep.getTargetIndex();
-    uncurried.push_back(LifetimeDependenceInfo(
-        inherit, scope, targetIndex, innerDep.hasImmortalSpecifier(),
-        innerDep.isFromAnnotation(), addressable, conditionallyAddressable));
+    uncurried.push_back(
+        LifetimeDependenceInfo(inherit, scope, targetIndex, addressable,
+                               conditionallyAddressable, innerDep.getFlags()));
   }
 
   return ctx.AllocateCopy(uncurried);
@@ -2209,7 +2238,9 @@ static std::optional<LifetimeDependenceInfo> checkSILTypeModifiers(
       return false;
     };
 
-  bool hasImmortalSpecifier= false;
+  LifetimeDependenceInfo::Flags flags;
+  flags.isFromAnnotation = true;
+  
   for (auto source : lifetimeDependentRepr->getLifetimeEntry()->getSources())
   {
     switch (source.getDescriptorKind()) {
@@ -2239,7 +2270,7 @@ static std::optional<LifetimeDependenceInfo> checkSILTypeModifiers(
     }
     case LifetimeDescriptor::DescriptorKind::Named: {
       assert(source.isImmortalSpecifier());
-      hasImmortalSpecifier = true;
+      flags.hasImmortalSpecifier = true;
       break;
     }
     default:
@@ -2256,14 +2287,13 @@ static std::optional<LifetimeDependenceInfo> checkSILTypeModifiers(
     ? IndexSubset::get(ctx, scopeLifetimeParamIndices)
     : nullptr,
     targetIndex,
-    /*hasImmortalSpecifier*/ hasImmortalSpecifier,
-    /*isFromAnnotation*/ true,
     addressableLifetimeParamIndices.any()
     ? IndexSubset::get(ctx, addressableLifetimeParamIndices)
     : nullptr,
     conditionallyAddressableLifetimeParamIndices.any()
     ? IndexSubset::get(ctx, conditionallyAddressableLifetimeParamIndices)
-    : nullptr);
+    : nullptr,
+    flags);
 }
 
 std::optional<llvm::ArrayRef<LifetimeDependenceInfo>>
