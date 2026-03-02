@@ -11,28 +11,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "swift/Serialization/ScanningLoaders.h"
-#include "ModuleFile.h"
 #include "ModuleFileSharedCore.h"
 #include "swift/AST/ASTContext.h"
-#include "swift/AST/DiagnosticEngine.h"
-#include "swift/AST/DiagnosticSuppression.h"
-#include "swift/AST/DiagnosticsFrontend.h"
-#include "swift/AST/DiagnosticsSema.h"
 #include "swift/AST/ModuleDependencies.h"
 #include "swift/AST/ModuleLoader.h"
 #include "swift/AST/SourceFile.h"
-#include "swift/AST/TypeCheckRequests.h"
-#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Basic/FileTypes.h"
-#include "swift/Basic/PrettyStackTrace.h"
-#include "swift/Frontend/ModuleInterfaceLoader.h"
 #include "swift/Serialization/SerializedModuleLoader.h"
-#include "swift/Subsystems.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
-#include "llvm/ADT/SetOperations.h"
-#include "llvm/Support/PrefixMapper.h"
-#include "llvm/Support/Threading.h"
 #include "llvm/Support/VirtualFileSystem.h"
 #include <algorithm>
 #include <system_error>

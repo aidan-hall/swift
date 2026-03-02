@@ -12,21 +12,14 @@
 
 #include "swift-c/DependencyScan/DependencyScan.h"
 #include "swift/AST/DiagnosticsCommon.h"
-#include "swift/Basic/PrettyStackTrace.h"
 
 #include "swift/AST/ASTContext.h"
-#include "swift/AST/Decl.h"
 #include "swift/AST/DiagnosticEngine.h"
-#include "swift/AST/DiagnosticsDriver.h"
 #include "swift/AST/DiagnosticsFrontend.h"
-#include "swift/AST/DiagnosticsSema.h"
 #include "swift/AST/FileSystem.h"
 #include "swift/AST/Module.h"
 #include "swift/AST/ModuleDependencies.h"
 #include "swift/AST/ModuleLoader.h"
-#include "swift/AST/SourceFile.h"
-#include "swift/Basic/Assertions.h"
-#include "swift/Basic/Defer.h"
 #include "swift/Basic/FileTypes.h"
 #include "swift/Basic/LLVM.h"
 #include "swift/Basic/STLExtras.h"
@@ -44,31 +37,22 @@
 #include "swift/Frontend/Frontend.h"
 #include "swift/Frontend/FrontendOptions.h"
 #include "swift/Frontend/ModuleInterfaceLoader.h"
-#include "swift/Frontend/SerializedDiagnosticConsumer.h"
 #include "swift/FrontendTool/Dependencies.h"
 #include "swift/Strings.h"
 #include "clang/CAS/IncludeTree.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SetOperations.h"
-#include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSet.h"
 #include "llvm/CAS/ActionCache.h"
 #include "llvm/CAS/CASReference.h"
 #include "llvm/CAS/ObjectStore.h"
-#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Error.h"
-#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
-#include "llvm/Support/StringSaver.h"
-#include "llvm/Support/VirtualOutputBackend.h"
-#include "llvm/Support/YAMLParser.h"
-#include "llvm/Support/YAMLTraits.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <set>
-#include <sstream>
 #include <stack>
 #include <string>
 

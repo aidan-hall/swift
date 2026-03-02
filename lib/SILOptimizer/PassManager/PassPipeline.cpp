@@ -22,22 +22,11 @@
 #define DEBUG_TYPE "sil-passpipeline-plan"
 
 #include "swift/SILOptimizer/PassManager/PassPipeline.h"
-#include "swift/AST/ASTContext.h"
-#include "swift/AST/Module.h"
 #include "swift/AST/SILOptions.h"
-#include "swift/SIL/SILModule.h"
-#include "swift/Basic/Assertions.h"
-#include "swift/SILOptimizer/Analysis/Analysis.h"
 #include "swift/SILOptimizer/PassManager/Passes.h"
-#include "swift/SILOptimizer/PassManager/Transforms.h"
-#include "swift/SILOptimizer/Utils/InstOptUtils.h"
-#include "llvm/ADT/Statistic.h"
-#include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/YAMLParser.h"
 #include "llvm/Support/YAMLTraits.h"
 
 using namespace swift;

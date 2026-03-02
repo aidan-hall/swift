@@ -49,7 +49,6 @@
 #include "swift/Basic/Statistic.h"
 #include "swift/Basic/SupportedFeatures.h"
 #include "swift/Basic/TargetInfo.h"
-#include "swift/Basic/UUID.h"
 #include "swift/Basic/Version.h"
 #include "swift/Bridging/ASTGen.h"
 #include "swift/ConstExtract/ConstExtract.h"
@@ -66,7 +65,6 @@
 #include "swift/IRGen/TBDGen.h"
 #include "swift/Immediate/Immediate.h"
 #include "swift/Index/IndexRecord.h"
-#include "swift/Migrator/FixitFilter.h"
 #include "swift/Migrator/Migrator.h"
 #include "swift/Option/Options.h"
 #include "swift/PrintAsClang/PrintAsClang.h"
@@ -97,7 +95,6 @@
 #include "llvm/Support/JSON.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/VirtualOutputBackend.h"
-#include "llvm/Support/VirtualOutputBackends.h"
 #include "llvm/Support/raw_ostream.h"
 
 #if __has_include(<unistd.h>)
@@ -105,7 +102,6 @@
 #elif defined(_WIN32)
 #include <process.h>
 #endif
-#include <algorithm>
 #include <memory>
 #include <unordered_set>
 #include <utility>
