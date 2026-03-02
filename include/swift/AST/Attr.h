@@ -27,7 +27,6 @@
 #include "swift/AST/ExportKind.h"
 #include "swift/AST/Identifier.h"
 #include "swift/AST/KnownProtocols.h"
-#include "swift/AST/LifetimeDependence.h"
 #include "swift/AST/MacroDeclaration.h"
 #include "swift/AST/Ownership.h"
 #include "swift/AST/PlatformKindUtils.h"
@@ -70,6 +69,7 @@ class CustomAttributeInitializer;
 class GenericFunctionType;
 class LazyConformanceLoader;
 class LazyMemberLoader;
+class LifetimeEntry;
 class MacroDecl;
 class ModuleDecl;
 class NominalTypeDecl;

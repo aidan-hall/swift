@@ -727,6 +727,11 @@ SourceLoc SILBoxTypeRepr::getLocImpl() const {
   return LBraceLoc;
 }
 
+LifetimeDependentTypeRepr::LifetimeDependentTypeRepr(TypeRepr *base,
+                                                     LifetimeEntry *entry)
+    : SpecifierTypeRepr(TypeReprKind::LifetimeDependent, base, entry->getLoc()),
+      entry(entry) {}
+
 LifetimeDependentTypeRepr *
 LifetimeDependentTypeRepr::create(ASTContext &C, TypeRepr *base,
                                   LifetimeEntry *entry) {

@@ -18,9 +18,9 @@
 #ifndef SWIFT_AST_TYPETRANSFORM_H
 #define SWIFT_AST_TYPETRANSFORM_H
 
+#include "swift/AST/ASTContext.h"
 #include "swift/AST/GenericEnvironment.h"
 #include "swift/AST/SILLayout.h"
-#include "swift/AST/LifetimeDependence.h"
 #include "swift/AST/SubstitutionMap.h"
 #include "llvm/ADT/SmallVector.h"
 

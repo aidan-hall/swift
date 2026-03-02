@@ -22,7 +22,6 @@
 #include "swift/AST/DiagnosticEngine.h"
 #include "swift/AST/GenericSignature.h"
 #include "swift/AST/Identifier.h"
-#include "swift/AST/LifetimeDependence.h"
 #include "swift/AST/Type.h"
 #include "swift/AST/TypeAlignments.h"
 #include "swift/Basic/Debug.h"
@@ -42,6 +41,7 @@ namespace swift {
   class TupleTypeRepr;
   class TypeDecl;
   class IntegerLiteralExpr;
+  class LifetimeEntry;
 
 enum class ParamSpecifier : uint8_t;
 
@@ -1627,11 +1627,8 @@ class LifetimeDependentTypeRepr final : public SpecifierTypeRepr {
   LifetimeEntry *entry;
 
 public:
-  LifetimeDependentTypeRepr(TypeRepr *base, LifetimeEntry *entry)
-      : SpecifierTypeRepr(TypeReprKind::LifetimeDependent, base,
-                          entry->getLoc()),
-        entry(entry) {}
-
+  LifetimeDependentTypeRepr(TypeRepr *base, LifetimeEntry *entry);
+  
   static LifetimeDependentTypeRepr *create(ASTContext &C, TypeRepr *base,
                                            LifetimeEntry *entry);
 
