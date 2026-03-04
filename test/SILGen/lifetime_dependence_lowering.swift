@@ -110,3 +110,33 @@ struct AddressableForDeps {
                 other: AddressableForDeps) -> Foo {}
 }
 
+protocol Operable: ~Escapable {
+  @_lifetime(borrow self, copy foo)
+  func getFoo(foo: Foo) -> Foo
+  @_lifetime(copy foo)
+  static func staticGetFoo(foo: Foo) -> Foo
+  @_lifetime(borrow self)
+  func getMemberFoo() -> Foo
+  @_lifetime(immortal)
+  static func getImmortalFoo() -> Foo
+}
+
+struct OperableType: ~Escapable {}
+extension OperableType: Operable {
+  @_lifetime(borrow self, copy foo)
+  func getFoo(foo: Foo) -> Foo { foo }
+  @_lifetime(copy foo)
+  static func staticGetFoo(foo: Foo) -> Foo { foo }
+  @_lifetime(borrow self)
+  func getMemberFoo() -> Foo { fatalError() }
+  @_lifetime(immortal)
+  static func getImmortalFoo() -> Foo { fatalError() }
+}
+
+// TODO: Update these tests when we change methods' function type representation to use captured context dependencies.
+
+// CHECK-LABEL: sil_witness_table hidden OperableType: Operable
+// CHECK-NEXT: method #Operable.getFoo: <Self where Self : Operable, Self : ~Escapable> @_lifetime(2: copy 0, borrow 1) (Self) -> (Foo) -> Foo : @$s{{.*}}6getFoo3foo{{.*}}
+// CHECK-NEXT: method #Operable.staticGetFoo: <Self where Self : Operable, Self : ~Escapable> (Self.Type) -> @_lifetime(1: copy 0) (Foo) -> Foo : @$s{{.*}}12staticGetFoo3foo{{.*}}
+// CHECK-NEXT: method #Operable.getMemberFoo: <Self where Self : Operable, Self : ~Escapable> @_lifetime(borrow 0) (Self) -> () -> Foo : @$s{{.*}}12getMemberFoo{{.*}}
+// CHECK-NEXT: method #Operable.getImmortalFoo: <Self where Self : Operable, Self : ~Escapable> (Self.Type) -> @_lifetime(immortal) () -> Foo : @$s{{.*}}14getImmortalFoo{{.*}}
