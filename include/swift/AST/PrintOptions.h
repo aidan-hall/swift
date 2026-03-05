@@ -420,6 +420,34 @@ public:
   /// Suppress @_lifetime attribute and emit @lifetime instead.
   bool SuppressLifetimes = false;
 
+  /// Function type lifetime annotation options:
+  /// 
+  /// The original lifetime annotation may not be accessible, or there may never
+  /// have been one, for function types, so we need to 
+
+  /// Whether to print the target of a function type lifetime annotation.
+  enum class LifetimeTargetMode: uint8_t {
+    /// Never print the target of a lifetime dependence.
+    Never,
+    /// Print the target unless it is the result (if no target is specified in a
+    /// lifetime annotation, the target is implicitly the result).
+    Auto,
+    /// Always print the target of a lifetime dependence.
+    Always,
+  };
+  LifetimeTargetMode PrintLifetimeTarget = LifetimeTargetMode::Always;
+
+  /// Whether to print lifetime dependence annotations based on function type
+  /// lifetime dependence info.
+  enum class LifetimeAnnotationMode : uint8_t {
+    /// Only print annotations for dependence info where
+    /// LifetimeDependenceInfo::isFromAnnotation is true.
+    Auto,
+    /// Always print lifetime annotations on function types.
+    Always,
+  };
+  LifetimeAnnotationMode PrintFuncTypeLifetimeAnnotations = LifetimeAnnotationMode::Always;
+
   /// Suppress @inline(always) attribute and emit @inline(__always) instead.
   bool SuppressInlineAlways = false;
 
