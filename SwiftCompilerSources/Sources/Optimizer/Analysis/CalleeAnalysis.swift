@@ -134,16 +134,19 @@ extension Instruction {
   /// Deinitialization barriers constrain variable lifetimes. Lexical
   /// end_borrow, destroy_value, and destroy_addr cannot be hoisted above them.
   final func isDeinitBarrier(_ analysis: CalleeAnalysis) -> Bool {
-    if let site = self as? FullApplySite {
+    switch instructionKind {
+    case .ApplyInst, .BeginApplyInst, .TryApplyInst:
+      let site = self as! FullApplySite
       return site.isBarrier(analysis)
-    }
-    if let eai = self as? EndApplyInst {
+    case .EndApplyInst:
+      let eai = self as! EndApplyInst
       return eai.isBarrier(analysis)
-    }
-    if let aai = self as? AbortApplyInst {
+    case .AbortApplyInst:
+      let aai = self as! AbortApplyInst
       return aai.isBarrier(analysis)
+    default:
+      return mayAccessPointer || mayLoadWeakOrUnowned || maySynchronize
     }
-    return mayAccessPointer || mayLoadWeakOrUnowned || maySynchronize
   }
 }
 
