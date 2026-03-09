@@ -745,6 +745,16 @@ struct BridgedInstruction {
   BRIDGED_INLINE bool isIdenticalTo(BridgedInstruction inst) const;
 
   // =========================================================================//
+  //                   Instruction kinds
+  // =========================================================================//
+  enum class BridgedInstructionKind {
+#define INST(ID, PARENT) ID,
+#include "swift/SIL/SILNodes.def"
+  };
+  BRIDGED_INLINE BridgedInstructionKind getKind() const;
+
+
+  // =========================================================================//
   //                   Generalized instruction subclasses
   // =========================================================================//
 

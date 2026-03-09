@@ -20,6 +20,9 @@ import SILBridging
 
 @_semantics("arc.immortal")
 public class Instruction : CustomStringConvertible, Hashable {
+  public typealias InstructionKind = BridgedInstruction.BridgedInstructionKind
+  public var instructionKind: InstructionKind { bridged.getKind() }
+
   final public var next: Instruction? {
     bridged.getNext().instruction
   }

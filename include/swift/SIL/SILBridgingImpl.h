@@ -1190,6 +1190,12 @@ bool BridgedInstruction::isIdenticalTo(BridgedInstruction inst) const {
   return unbridged()->isIdenticalTo(inst.unbridged());
 }
 
+BridgedInstruction::BridgedInstructionKind BridgedInstruction::getKind() const {
+  static_assert(sizeof(BridgedInstructionKind) >=
+                sizeof(swift::SILInstructionKind));
+  return BridgedInstructionKind(unbridged()->getKind());
+}
+
 SwiftInt BridgedInstruction::MultipleValueInstruction_getNumResults() const {
   return getAs<swift::MultipleValueInstruction>()->getNumResults();
 }
