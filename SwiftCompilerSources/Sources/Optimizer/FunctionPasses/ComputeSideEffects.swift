@@ -160,17 +160,19 @@ private struct CollectedEffects {
 
   mutating func addInstructionEffects(_ inst: Instruction) {
     var checkedIfDeinitBarrier = false
-    switch inst {
-    case is CopyValueInst, is RetainValueInst, is StrongRetainInst:
+    switch inst.instructionKind {
+    case .CopyValueInst, .RetainValueInst, .StrongRetainInst:
       addEffects(.copy, to: inst.operands[0].value, fromInitialPath: SmallProjectionPath(.anyValueFields))
 
-    case is DestroyValueInst, is DestroyNotEscapedClosureInst, is ReleaseValueInst, is StrongReleaseInst:
+    case .DestroyValueInst, .DestroyNotEscapedClosureInst, .ReleaseValueInst, .StrongReleaseInst:
       addDestroyEffects(ofValue: inst.operands[0].value)
 
-    case let da as DestroyAddrInst:
+    case .DestroyAddrInst:
+      let da = inst as! DestroyAddrInst
       addDestroyEffects(ofAddress: da.destroyedAddress)
 
-    case let copy as CopyAddrInst:
+    case .CopyAddrInst:
+      let copy = inst as! CopyAddrInst
       addEffects(.read, to: copy.source)
       addEffects(.write, to: copy.destination)
 
@@ -181,23 +183,27 @@ private struct CollectedEffects {
         addDestroyEffects(ofAddress: copy.destination)
       }
 
-    case let store as StoreInst:
+    case .StoreInst:
+      let store = inst as! StoreInst
       addEffects(.write, to: store.destination)
       if store.storeOwnership == .assign {
         addDestroyEffects(ofAddress: store.destination)
       }
 
-    case let store as StoreWeakInst:
+    case .StoreWeakInst:
+      let store = inst as! StoreWeakInst
       addEffects(.write, to: store.destination)
 
-    case let store as StoreUnownedInst:
+    case .StoreUnownedInst:
+      let store = inst as! StoreUnownedInst
       addEffects(.write, to: store.destination)
 
-    case is LoadInst, is LoadWeakInst, is LoadUnownedInst, is LoadBorrowInst:
+    case .LoadInst, .LoadWeakInst, .LoadUnownedInst, .LoadBorrowInst:
       let addr = inst.operands[0].value
       addEffects(.read, to: addr)
 
-    case let apply as FullApplySite:
+    case .ApplyInst, .BeginApplyInst, .TryApplyInst:
+      let apply = inst as! FullApplySite
       if apply.callee.type.isCalleeConsumedFunction {
         addEffects(.destroy, to: apply.callee)
         globalEffects = .worstEffects
@@ -205,7 +211,8 @@ private struct CollectedEffects {
       handleApply(apply)
       checkedIfDeinitBarrier = true
 
-    case let pa as PartialApplyInst:
+    case .PartialApplyInst:
+      let pa = inst as! PartialApplyInst
       if pa.canBeAppliedInFunction(context) {
         // Only if the created closure can actually be called in the function
         // we have to consider side-effects within the closure.
@@ -231,7 +238,8 @@ private struct CollectedEffects {
         }
       }
 
-    case let fl as FixLifetimeInst:
+    case .FixLifetimeInst:
+      let fl = inst as! FixLifetimeInst
       // A fix_lifetime instruction acts like a read on the operand to prevent
       // releases moving above the fix_lifetime.
       addEffects(.read, to: fl.operand.value)
@@ -239,22 +247,22 @@ private struct CollectedEffects {
       // Instructions which have effects defined in SILNodes.def, but those effects are
       // not relevant for our purpose.
       // In most cases these conservative effects are there to prevent code re-scheduling within
-      // the function. But this is not relevant for side effect summaries which we compute here.
-    case is DeallocStackInst, is DeallocStackRefInst,
-      is BeginAccessInst, is EndAccessInst,
-      is BeginBorrowInst, is EndBorrowInst,
-      is DebugValueInst, is KeyPathInst, is FixLifetimeInst,
-      is EndApplyInst, is AbortApplyInst,
-      is EndCOWMutationInst, is UnconditionalCheckedCastInst,
-      is CondFailInst:
+      // the function. But this .not relevant for side effect summaries which we compute here.
+    case .DeallocStackInst, .DeallocStackRefInst,
+         .BeginAccessInst, .EndAccessInst,
+         .BeginBorrowInst, .EndBorrowInst,
+         .DebugValueInst, .KeyPathInst,
+         .EndApplyInst, .AbortApplyInst,
+         .EndCOWMutationInst, .UnconditionalCheckedCastInst,
+         .CondFailInst:
       break
 
-    case is BeginCOWMutationInst, is IsUniqueInst:
+    case .BeginCOWMutationInst, .IsUniqueInst:
       // Model reference count reading as "destroy" for now. Although we could introduce a "read-refcount"
       // effect, it would not give any significant benefit in any of our current optimizations.
       addEffects(.destroy, to: inst.operands[0].value, fromInitialPath: SmallProjectionPath(.anyValueFields))
 
-    case is ReturnInstruction:
+    case .ReturnInst, .ReturnBorrowInst:
       if inst.parentFunction.convention.hasAddressResult {
         addEffects(.read, to: inst.operands[0].value)
       }
