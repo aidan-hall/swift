@@ -12,6 +12,7 @@
 
 #include "swift/SILOptimizer/OptimizerBridging.h"
 #include "../../IRGen/IRGenModule.h"
+#include "swift/IRGen/IRGenSILPasses.h"
 #include "swift/AST/SemanticAttrs.h"
 #include "swift/Demangling/ManglingMacros.h"
 #include "swift/SIL/DynamicCasts.h"
@@ -170,6 +171,16 @@ bool BridgedPassContext::canMakeStaticObjectReadOnly(BridgedType type) const {
     return IGM->canMakeStaticObjectReadOnly(type.unbridged());
   }
   return false;
+}
+
+bool BridgedPassContext::isLargeLoadableType(BridgedType bridgedType,
+                                             BridgedFunction bridgedFunc) const {
+  irgen::IRGenModule *IGM = invocation->getIRGenModule();
+  if (!IGM)
+    return false;
+  SILFunction *F = bridgedFunc.getFunction();
+  return swift::isLargeLoadableType(F->getGenericEnvironment(),
+                                    bridgedType.unbridged(), *IGM);
 }
 
 OptionalBridgedFunction BridgedPassContext::specializeFunction(BridgedFunction function,

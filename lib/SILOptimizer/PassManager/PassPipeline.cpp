@@ -1089,6 +1089,7 @@ SILPassPipelinePlan::getOnonePassPipeline(const SILOptions &Options) {
   P.addMovedAsyncVarDebugInfoPropagator();
 
   // Even at Onone it's important to remove copies of structs, especially if they are large.
+  P.addRValueHoisting();
   P.addMandatoryTempRValueElimination();
 
   // If we are asked to stop optimizing before lowering ownership, do so now.

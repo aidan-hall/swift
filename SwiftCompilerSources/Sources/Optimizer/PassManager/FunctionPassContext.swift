@@ -255,3 +255,10 @@ struct FunctionPassContext : MutatingContext {
     bridgedPassContext.fixStackNesting(function.bridged)
   }
 }
+
+// IRGen query — not part of the SIL layer
+extension Type {
+  func isLargeLoadableType(in function: Function, _ context: FunctionPassContext) -> Bool {
+    context.bridgedPassContext.isLargeLoadableType(self.bridged, function.bridged)
+  }
+}

@@ -130,6 +130,8 @@ PASS(StripObjectHeaders, "strip-object-headers",
     "Sets the bare flag on objects which don't need their headers")
 PASS(StackPromotion, "stack-promotion",
      "Stack Promotion of Class Objects")
+PASS(RValueHoisting, "rvalue-hoisting",
+     "Hoist large loadable by-value parameters to alloc_stack in entry block")
 PASS(MandatoryTempRValueElimination, "mandatory-temp-rvalue-elimination",
      "Mandatory remove short-lived immutable temporary copies")
 PASS(TempRValueElimination, "temp-rvalue-elimination",

@@ -37,6 +37,7 @@ swift_compiler_sources(Optimizer
   NamedReturnValueOptimization.swift
   RedundantLoadElimination.swift
   ReleaseDevirtualizer.swift
+  RValueHoisting.swift
   SimplificationPasses.swift
   StackPromotion.swift
   StripObjectHeaders.swift

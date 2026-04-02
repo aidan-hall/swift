@@ -229,6 +229,7 @@ struct BridgedPassContext {
   SwiftInt getStaticAlignment(BridgedType type) const;
   SwiftInt getStaticStride(BridgedType type) const;
   bool canMakeStaticObjectReadOnly(BridgedType type) const;
+  bool isLargeLoadableType(BridgedType type, BridgedFunction f) const;
 
   // Stack nesting and other notifications
 
