@@ -2054,9 +2054,18 @@ final public class TuplePackElementAddrInst: SingleValueInstruction {
   public var tupleOperand: Operand { operands[1] }
 }
 
-final public class PackElementGetInst: SingleValueInstruction {}
 
-final public class PackElementSetInst: Instruction {}
+
+final public class PackElementGetInst: SingleValueInstruction {
+  public var indexOperand: Operand { operands[0] }
+  public var packOperand: Operand { operands[1] }
+}
+
+final public class PackElementSetInst: Instruction {
+  public var valueOperand: Operand { operands[0] }
+  public var indexOperand: Operand { operands[1] }
+  public var packOperand: Operand { operands[2] }
+}
 
 //===----------------------------------------------------------------------===//
 //                            terminator instructions
