@@ -94,8 +94,8 @@ func numericOp<T: BinaryInteger>(_ x: T) -> T {
 }
 
 // CHECK: define {{.*}} i64 @"$s19pack_specialization11numericLoopyxxQp_txxQpRvzSzRzlFs5Int32V_ADQP_Tg5Tf8xx_n"(i32 %0, i32 %1) {{.*}} {
-// CHECK: [[SP1:%[0-9]+]] = add nsw i32 %0, -1
 // CHECK: [[SP2:%[0-9]+]] = add nsw i32 %0, -2
+// CHECK: [[SP1:%[0-9]+]] = add nsw i32 %0, -1
 // CHECK: [[SP_RESULT:%[0-9]+]] = tail call {{.*}} @"$s19pack_specialization11numericLoopyxxQp_txxQpRvzSzRzlFs5Int32V_ADQP_Tg5Tf8xx_n"(i32 [[SP1]], i32 [[SP2]])
 // CHECK-NEXT: [[SP_RESULT1:%[^ ]+]] = trunc i64 [[SP_RESULT]] to i32
 // CHECK-NEXT: [[SP_RESULT2_64:%[^ ]+]] = lshr i64 [[SP_RESULT]], 32
@@ -122,8 +122,8 @@ public func applyPointer<each T>(input: repeat UnsafePointer<each T>, op: (repea
   op(repeat (each input).pointee)
 }
 
-// CHECK: define {{.*}} i32 @"$s19pack_specialization4tests5Int32VyF"() {{.*}} {
-// CHECK-NEXT: "$s19pack_specialization4tests5Int32VyFADSPyADGXEfU_.exit":
+// CHECK:      define {{.*}} i32 @"$s19pack_specialization4tests5Int32VyF"() {{.*}} {
+// CHECK-NEXT: entry:
 // CHECK-NEXT:   ret i32 54
 // CHECK-NEXT: }
 public func test() -> Int32 {
@@ -138,10 +138,50 @@ public func applyDirect<each T>(input: repeat each T, op: (repeat each T) -> Int
   op(repeat (each input))
 }
 
-// CHECK: define {{.*}} i32 @"$s19pack_specialization10testDirects5Int32VyF"() {{.*}} {
+// CHECK:      define {{.*}} i32 @"$s19pack_specialization10testDirects5Int32VyF"() {{.*}} {
 // CHECK-NEXT: entry:
 // CHECK-NEXT:   ret i32 54
 // CHECK-NEXT: }
 public func testDirect() -> Int32 {
     applyDirect(input: 27, 27) { ($0 + $1) }
+}
+
+// MARK: rdar://164686498 Result Builders
+
+@resultBuilder
+public struct ThingBuilderParameterPack {
+    @inline(always)
+    public static func buildBlock<each Content: Thing>(_ content: repeat each Content) -> TupleThing<(repeat each Content)> {
+        TupleThing((repeat each content))
+    }
+}
+
+// CHECK:      define {{.*}} void @"$s19pack_specialization19bodyParameterPacks2QryF"(ptr noalias writeonly sret(%T19pack_specialization10TupleThingVyAA02MyD0V_AEtG) captures(none) {{.*}} %0) {{.*}} {
+// CHECK-NEXT: entry:
+// CHECK-NEXT:   [[ALLOCA:%[0-9]+]] = alloca <{ %T19pack_specialization7MyThingV, %T19pack_specialization7MyThingV }>
+// CHECK-NEXT:   call {{.*}} @"$s19pack_specialization7MyThingVACycfCTf4d_n"({{.*}} [[ALLOCA]])
+// CHECK-NEXT:   [[SECOND_THING:%[^ ]+]] = getelementptr {{.*}} ptr [[ALLOCA]]
+// CHECK-NEXT:   call {{.*}} @"$s19pack_specialization7MyThingVACycfCTf4d_n"({{.*}} [[SECOND_THING]])
+// CHECK-NEXT:   memcpy{{.*}} %0, {{.*}} [[ALLOCA]]
+// CHECK-NEXT:   ret void
+// CHECK-NEXT: }
+@ThingBuilderParameterPack
+public func bodyParameterPacks2() -> some Thing {
+    MyThing()
+    MyThing()
+}
+
+public final class MyClass {}
+
+public protocol Thing {}
+public struct MyThing: Thing {
+  public var storage: (MyClass, MyClass, MyClass, MyClass, MyClass, MyClass, MyClass, MyClass, MyClass) = (MyClass(), MyClass(), MyClass(), MyClass(), MyClass(), MyClass(), MyClass(), MyClass(), MyClass())
+    @inline(never)
+    public init() {}
+}
+
+public struct TupleThing<T>: Thing {
+    public var value: T
+    @inline(always)
+    public init(_ value: T) { self.value = value }
 }
