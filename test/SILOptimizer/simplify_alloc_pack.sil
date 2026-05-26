@@ -134,26 +134,6 @@ bb0:
 
 // MARK: Non-Trivial Negative Tests
 
-// If a pack element is set multiple times, the pack is not eliminated.
-// CHECK-LABEL: sil [ossa] @multi_set_a : $@convention(thin) () -> () {
-// CHECK:         alloc_pack $Pack{A}
-// CHECK-LABEL: } // end sil function 'multi_set_a'
-sil [ossa] @multi_set_a : $@convention(thin) () -> () {
-bb0:
-  %a = alloc_stack $A
-  %pack = alloc_pack $Pack{A}
-  %idx = scalar_pack_index 0 of $Pack{A}
-  pack_element_set %a into %idx of %pack
-  pack_element_set %a into %idx of %pack
-  %get_a = pack_element_get %idx of %pack as $*A
-  %use = function_ref @use : $@convention(thin) <T> (@in_guaranteed T) -> ()
-  apply %use<A>(%get_a) : $@convention(thin) <T> (@in_guaranteed T) -> ()
-  dealloc_pack %pack
-  dealloc_stack %a
-  %result = tuple ()
-  return %result
-}
-
 // If a pack element is set with a dynamic index, the pack is not eliminated.
 // CHECK-LABEL: sil [ossa] @dynamic_set_a : $@convention(thin) () -> () {
 // CHECK:         alloc_pack $Pack{A}
@@ -237,8 +217,9 @@ bb0:
   %result = tuple ()
   return %result
 }
-// If a pack element is not set, the pack is not eliminated.
 
+// If a pack element is not set (undefined behaviour), the pack is not
+// eliminated.
 // CHECK-LABEL: sil [ossa] @unset_a : $@convention(thin) () -> () {
 // CHECK: alloc_pack
 // CHECK-LABEL: } // end sil function 'unset_a'
@@ -308,13 +289,18 @@ bb0:
 
 // MARK: Basic Positive Cases
 
-// If the pack is eliminated, all uses of pack_element_get are replaced with the
-// corresponding original value/address.
+// If the pack is eliminated, it is replaced with a stack-allocated tuple
+// containing the same elements in the same order. See SimplifyAllocPack.swift
+// for more detail.
+
 // CHECK-LABEL: sil [ossa] @success_a : $@convention(thin) () -> () {
 // CHECK:         [[ALLOC_A:%[0-9]+]] = alloc_stack $A
-// CHECK-NOT:     alloc_pack
+// CHECK:         [[ALLOC_TUPLE:%[0-9]+]] = alloc_stack $(A)
+// CHECK-NEXT:    [[ADDR_A:%[0-9]+]] = tuple_element_addr [[ALLOC_TUPLE]] : $*(A), 0
+// CHECK-NEXT:    copy_addr [[ALLOC_A]] to [init] [[ADDR_A]]
 // CHECK:         [[USE:%[0-9]+]] = function_ref @use
-// CHECK-NEXT:    apply [[USE]]<A>([[ALLOC_A]])
+// CHECK-NEXT:    apply [[USE]]<A>([[ADDR_A]])
+// CHECK-NEXT:    dealloc_pack [[ALLOC_TUPLE]]
 // CHECK-LABEL: } // end sil function 'success_a'
 sil [ossa] @success_a : $@convention(thin) () -> () {
 bb0:
@@ -334,10 +320,15 @@ bb0:
 // CHECK-LABEL: sil [ossa] @success_ab : $@convention(thin) () -> () {
 // CHECK:         [[ALLOC_A:%[0-9]+]] = alloc_stack $A
 // CHECK:         [[ALLOC_B:%[0-9]+]] = alloc_stack $B
-// CHECK-NOT:     alloc_pack
+// CHECK:         [[ALLOC_TUPLE:%[0-9]+]] = alloc_stack $(A, B)
+// CHECK-NEXT:    [[ADDR_A:%[0-9]+]] = tuple_element_addr [[ALLOC_TUPLE]] : $*(A, B), 0
+// CHECK-NEXT:    [[ADDR_B:%[0-9]+]] = tuple_element_addr [[ALLOC_TUPLE]] : $*(A, B), 1
+// CHECK-NEXT:    copy_addr [[ALLOC_A]] to [init] [[ADDR_A]]
+// CHECK-NEXT:    copy_addr [[ALLOC_B]] to [init] [[ADDR_B]]
 // CHECK:         [[USE:%[0-9]+]] = function_ref @use
-// CHECK-NEXT:    apply [[USE]]<A>([[ALLOC_A]])
-// CHECK-NEXT:    apply [[USE]]<B>([[ALLOC_B]])
+// CHECK-NEXT:    apply [[USE]]<A>([[ADDR_A]])
+// CHECK-NEXT:    apply [[USE]]<B>([[ADDR_B]])
+// CHECK-NEXT:    dealloc_pack [[ALLOC_TUPLE]]
 // CHECK-LABEL: } // end sil function 'success_ab'
 sil [ossa] @success_ab : $@convention(thin) () -> () {
 bb0:
@@ -360,200 +351,6 @@ bb0:
   return %result
 }
 
-// The order of set instructions does not affect the result
-
-// CHECK-LABEL: sil [ossa] @set_permutation_ba : $@convention(thin) () -> () {
-// CHECK:         [[ALLOC_A:%[0-9]+]] = alloc_stack $A
-// CHECK:         [[ALLOC_B:%[0-9]+]] = alloc_stack $A
-// CHECK-NOT:     alloc_pack
-// CHECK:         [[USE:%[0-9]+]] = function_ref @use
-// CHECK-NEXT:    apply [[USE]]<A>([[ALLOC_A]])
-// CHECK-NEXT:    apply [[USE]]<A>([[ALLOC_B]])
-// CHECK-LABEL: } // end sil function 'set_permutation_ba'
-sil [ossa] @set_permutation_ba : $@convention(thin) () -> () {
-bb0:
-  %a = alloc_stack $A
-  %b = alloc_stack $A
-  %pack = alloc_pack $Pack{A, A}
-  %idx_a = scalar_pack_index 0 of $Pack{A, A}
-  %idx_b = scalar_pack_index 1 of $Pack{A, A}
-  pack_element_set %b into %idx_b of %pack
-  pack_element_set %a into %idx_a of %pack
-  %get_a = pack_element_get %idx_a of %pack as $*A
-  %get_b = pack_element_get %idx_b of %pack as $*A
-  %use = function_ref @use : $@convention(thin) <T> (@in_guaranteed T) -> ()
-  apply %use<A>(%get_a) : $@convention(thin) <T> (@in_guaranteed T) -> ()
-  apply %use<A>(%get_b) : $@convention(thin) <T> (@in_guaranteed T) -> ()
-  dealloc_pack %pack
-  dealloc_stack %b
-  dealloc_stack %a
-  %result = tuple ()
-  return %result
-}
-
-// CHECK-LABEL: sil [ossa] @set_permutation_abc : $@convention(thin) () -> () {
-// CHECK:         [[ALLOC_A:%[0-9]+]] = alloc_stack $A
-// CHECK:         [[ALLOC_B:%[0-9]+]] = alloc_stack $A
-// CHECK:         [[ALLOC_C:%[0-9]+]] = alloc_stack $A
-// CHECK-NOT:     alloc_pack
-// CHECK:         [[USE:%[0-9]+]] = function_ref @use
-// CHECK-NEXT:    apply [[USE]]<A>([[ALLOC_A]])
-// CHECK-NEXT:    apply [[USE]]<A>([[ALLOC_B]])
-// CHECK-NEXT:    apply [[USE]]<A>([[ALLOC_C]])
-// CHECK-LABEL: } // end sil function 'set_permutation_abc'
-sil [ossa] @set_permutation_abc : $@convention(thin) () -> () {
-bb0:
-  %a = alloc_stack $A
-  %b = alloc_stack $A
-  %c = alloc_stack $A
-  %pack = alloc_pack $Pack{A, A, A}
-  %idx_a = scalar_pack_index 0 of $Pack{A, A, A}
-  %idx_b = scalar_pack_index 1 of $Pack{A, A, A}
-  %idx_c = scalar_pack_index 2 of $Pack{A, A, A}
-  pack_element_set %a into %idx_a of %pack
-  pack_element_set %b into %idx_b of %pack
-  pack_element_set %c into %idx_c of %pack
-  %get_a = pack_element_get %idx_a of %pack as $*A
-  %get_b = pack_element_get %idx_b of %pack as $*A
-  %get_c = pack_element_get %idx_c of %pack as $*A
-  %use = function_ref @use : $@convention(thin) <T> (@in_guaranteed T) -> ()
-  apply %use<A>(%get_a) : $@convention(thin) <T> (@in_guaranteed T) -> ()
-  apply %use<A>(%get_b) : $@convention(thin) <T> (@in_guaranteed T) -> ()
-  apply %use<A>(%get_c) : $@convention(thin) <T> (@in_guaranteed T) -> ()
-  dealloc_pack %pack
-  dealloc_stack %c
-  dealloc_stack %b
-  dealloc_stack %a
-  %result = tuple ()
-  return %result
-}
-
-// CHECK-LABEL: sil [ossa] @set_permutation_cab : $@convention(thin) () -> () {
-// CHECK:         [[ALLOC_A:%[0-9]+]] = alloc_stack $A
-// CHECK:         [[ALLOC_B:%[0-9]+]] = alloc_stack $A
-// CHECK:         [[ALLOC_C:%[0-9]+]] = alloc_stack $A
-// CHECK-NOT:     alloc_pack
-// CHECK:         [[USE:%[0-9]+]] = function_ref @use
-// CHECK-NEXT:    apply [[USE]]<A>([[ALLOC_A]])
-// CHECK-NEXT:    apply [[USE]]<A>([[ALLOC_B]])
-// CHECK-NEXT:    apply [[USE]]<A>([[ALLOC_C]])
-// CHECK-LABEL: } // end sil function 'set_permutation_cab'
-sil [ossa] @set_permutation_cab : $@convention(thin) () -> () {
-bb0:
-  %a = alloc_stack $A
-  %b = alloc_stack $A
-  %c = alloc_stack $A
-  %pack = alloc_pack $Pack{A, A, A}
-  %idx_a = scalar_pack_index 0 of $Pack{A, A, A}
-  %idx_b = scalar_pack_index 1 of $Pack{A, A, A}
-  %idx_c = scalar_pack_index 2 of $Pack{A, A, A}
-  pack_element_set %c into %idx_c of %pack
-  pack_element_set %a into %idx_a of %pack
-  pack_element_set %b into %idx_b of %pack
-  %get_a = pack_element_get %idx_a of %pack as $*A
-  %get_b = pack_element_get %idx_b of %pack as $*A
-  %get_c = pack_element_get %idx_c of %pack as $*A
-  %use = function_ref @use : $@convention(thin) <T> (@in_guaranteed T) -> ()
-  apply %use<A>(%get_a) : $@convention(thin) <T> (@in_guaranteed T) -> ()
-  apply %use<A>(%get_b) : $@convention(thin) <T> (@in_guaranteed T) -> ()
-  apply %use<A>(%get_c) : $@convention(thin) <T> (@in_guaranteed T) -> ()
-  dealloc_pack %pack
-  dealloc_stack %c
-  dealloc_stack %b
-  dealloc_stack %a
-  %result = tuple ()
-  return %result
-}
-
-// CHECK-LABEL: sil [ossa] @set_permutation_bca : $@convention(thin) () -> () {
-// CHECK:         [[ALLOC_A:%[0-9]+]] = alloc_stack $A
-// CHECK:         [[ALLOC_B:%[0-9]+]] = alloc_stack $A
-// CHECK:         [[ALLOC_C:%[0-9]+]] = alloc_stack $A
-// CHECK-NOT:     alloc_pack
-// CHECK:         [[USE:%[0-9]+]] = function_ref @use
-// CHECK-NEXT:    apply [[USE]]<A>([[ALLOC_A]])
-// CHECK-NEXT:    apply [[USE]]<A>([[ALLOC_B]])
-// CHECK-NEXT:    apply [[USE]]<A>([[ALLOC_C]])
-// CHECK-LABEL: } // end sil function 'set_permutation_bca'
-sil [ossa] @set_permutation_bca : $@convention(thin) () -> () {
-bb0:
-  %a = alloc_stack $A
-  %b = alloc_stack $A
-  %c = alloc_stack $A
-  %pack = alloc_pack $Pack{A, A, A}
-  %idx_a = scalar_pack_index 0 of $Pack{A, A, A}
-  %idx_b = scalar_pack_index 1 of $Pack{A, A, A}
-  %idx_c = scalar_pack_index 2 of $Pack{A, A, A}
-  pack_element_set %b into %idx_b of %pack
-  pack_element_set %c into %idx_c of %pack
-  pack_element_set %a into %idx_a of %pack
-  %get_a = pack_element_get %idx_a of %pack as $*A
-  %get_b = pack_element_get %idx_b of %pack as $*A
-  %get_c = pack_element_get %idx_c of %pack as $*A
-  %use = function_ref @use : $@convention(thin) <T> (@in_guaranteed T) -> ()
-  apply %use<A>(%get_a) : $@convention(thin) <T> (@in_guaranteed T) -> ()
-  apply %use<A>(%get_b) : $@convention(thin) <T> (@in_guaranteed T) -> ()
-  apply %use<A>(%get_c) : $@convention(thin) <T> (@in_guaranteed T) -> ()
-  dealloc_pack %pack
-  dealloc_stack %c
-  dealloc_stack %b
-  dealloc_stack %a
-  %result = tuple ()
-  return %result
-}
-
 // MARK: Debug Info Handling
 
 // TODO: Retain debug info when eliminating packs.
-
-// CHECK-LABEL: sil [ossa] @debuginfo_a : $@convention(thin) () -> () {
-// CHECK:         [[ALLOC_A:%[0-9]+]] = alloc_stack $A
-// CHECK-NOT:     alloc_pack
-// CHECK:         [[USE:%[0-9]+]] = function_ref @use
-// CHECK-NEXT:    apply [[USE]]<A>([[ALLOC_A]])
-// CHECK-LABEL: } // end sil function 'debuginfo_a'
-sil [ossa] @debuginfo_a : $@convention(thin) () -> () {
-bb0:
-  %a = alloc_stack $A
-  %pack = alloc_pack $Pack{A}
-  debug_value %pack, let, name "pack", expr op_deref
-  %idx_a = scalar_pack_index 0 of $Pack{A}
-  pack_element_set %a into %idx_a of %pack
-  %get_a = pack_element_get %idx_a of %pack as $*A
-  %use = function_ref @use : $@convention(thin) <T> (@in_guaranteed T) -> ()
-  apply %use<A>(%get_a) : $@convention(thin) <T> (@in_guaranteed T) -> ()
-  dealloc_pack %pack
-  dealloc_stack %a
-  %result = tuple ()
-  return %result
-}
-
-// CHECK-LABEL: sil [ossa] @debuginfo_ab : $@convention(thin) () -> () {
-// CHECK:         [[ALLOC_A:%[0-9]+]] = alloc_stack $A
-// CHECK:         [[ALLOC_B:%[0-9]+]] = alloc_stack $B
-// CHECK-NOT:     alloc_pack
-// CHECK:         [[USE:%[0-9]+]] = function_ref @use
-// CHECK-NEXT:    apply [[USE]]<A>([[ALLOC_A]])
-// CHECK-NEXT:    apply [[USE]]<B>([[ALLOC_B]])
-// CHECK-LABEL: } // end sil function 'debuginfo_ab'
-sil [ossa] @debuginfo_ab : $@convention(thin) () -> () {
-bb0:
-  %a = alloc_stack $A
-  %b = alloc_stack $B
-  %pack = alloc_pack $Pack{A, B}
-  debug_value %pack, let, name "pack", expr op_deref
-  %idx_a = scalar_pack_index 0 of $Pack{A, B}
-  %idx_b = scalar_pack_index 1 of $Pack{A, B}
-  pack_element_set %a into %idx_a of %pack
-  pack_element_set %b into %idx_b of %pack
-  %get_a = pack_element_get %idx_a of %pack as $*A
-  %get_b = pack_element_get %idx_b of %pack as $*B
-  %use = function_ref @use : $@convention(thin) <T> (@in_guaranteed T) -> ()
-  apply %use<A>(%get_a) : $@convention(thin) <T> (@in_guaranteed T) -> ()
-  apply %use<B>(%get_b) : $@convention(thin) <T> (@in_guaranteed T) -> ()
-  dealloc_pack %pack
-  dealloc_stack %b
-  dealloc_stack %a
-  %result = tuple ()
-  return %result
-}
