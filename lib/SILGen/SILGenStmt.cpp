@@ -1654,6 +1654,11 @@ SILGenFunction::getTryApplyErrorDest(SILLocation loc,
   // If we're suppressing error paths, just wrap it up as unreachable
   // and return.
   if (suppressErrorPath) {
+    // Clean up error value if owned.
+    if (errorValue->getOwnershipKind() == OwnershipKind::Owned)
+      B.createEndLifetime(loc, errorValue);
+    // Flush any cleanups.
+    Cleanups.emitCleanupsForReturn(CleanupLocation(loc), NotForUnwind);
     B.createUnreachable(loc);
     return destBB;
   }
