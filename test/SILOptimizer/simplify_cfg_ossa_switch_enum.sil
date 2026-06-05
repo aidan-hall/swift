@@ -355,3 +355,99 @@ bb3:
   return %t : $()
 }
 
+// rdar177840176: simplifySwitchEnumBlock must not fold an @owned switch_enum
+// when the source `enum` constructor has surviving live users. Otherwise the
+// fold leaves the forwarding constructor in place alongside an
+// unchecked_enum_data of the same payload, which a later peephole collapses to
+// double-consume the payload.
+
+// Direct @owned EnumInst with another non-trivial user (copy_value): bail.
+// CHECK-LABEL: sil [ossa] @test_no_fold_owned_extra_use :
+// CHECK:         switch_enum
+// CHECK-LABEL: } // end sil function 'test_no_fold_owned_extra_use'
+sil [ossa] @test_no_fold_owned_extra_use : $@convention(thin) (@owned Klass) -> () {
+bb0(%0 : @owned $Klass):
+  specify_test "simplify_cfg_simplify_switch_enum_block @instruction[3]"
+  %1 = enum $FakeOptional<Klass>, #FakeOptional.some!enumelt, %0 : $Klass
+  %c = copy_value %1 : $FakeOptional<Klass>
+  destroy_value %c : $FakeOptional<Klass>
+  switch_enum %1 : $FakeOptional<Klass>, case #FakeOptional.some!enumelt: bb1, case #FakeOptional.none!enumelt: bb2
+
+bb2:
+  br bb3
+
+bb1(%3 : @owned $Klass):
+  destroy_value %3 : $Klass
+  br bb3
+
+bb3:
+  %t = tuple ()
+  return %t : $()
+}
+
+// Direct @owned EnumInst with a destroy_value on a divergent dead-end edge:
+// bail. The dead-end consumes the enum on its path; the fold target consumes
+// it on the other. Folding would produce an unchecked_enum_data alongside the
+// still-live constructor.
+// CHECK-LABEL: sil [ossa] @test_no_fold_owned_dead_end_destroy :
+// CHECK:         switch_enum
+// CHECK-LABEL: } // end sil function 'test_no_fold_owned_dead_end_destroy'
+sil [ossa] @test_no_fold_owned_dead_end_destroy : $@convention(thin) (@owned Klass) -> () {
+bb0(%0 : @owned $Klass):
+  %1 = enum $FakeOptional<Klass>, #FakeOptional.some!enumelt, %0 : $Klass
+  cond_br undef, bb_alt, bb_main
+
+bb_alt:
+  destroy_value [dead_end] %1 : $FakeOptional<Klass>
+  unreachable
+
+bb_main:
+  specify_test "simplify_cfg_simplify_switch_enum_block @instruction[4]"
+  switch_enum %1 : $FakeOptional<Klass>, case #FakeOptional.some!enumelt: bb1, case #FakeOptional.none!enumelt: bb2
+
+bb2:
+  br bb3
+
+bb1(%3 : @owned $Klass):
+  destroy_value %3 : $Klass
+  br bb3
+
+bb3:
+  %t = tuple ()
+  return %t : $()
+}
+
+// Phi-of-@owned-enums where one predecessor's `enum` has an extra non-consuming
+// user before the branch: bail. Mirrors the rdar177840176 shape.
+// CHECK-LABEL: sil [ossa] @test_no_fold_phi_extra_use :
+// CHECK:         switch_enum
+// CHECK-LABEL: } // end sil function 'test_no_fold_phi_extra_use'
+sil [ossa] @test_no_fold_phi_extra_use : $@convention(thin) (@owned Klass) -> () {
+bb0(%0 : @owned $Klass):
+  cond_br undef, bb1, bb2
+
+bb1:
+  %2 = enum $FakeOptional<Klass>, #FakeOptional.some!enumelt, %0 : $Klass
+  %c = copy_value %2 : $FakeOptional<Klass>
+  destroy_value %c : $FakeOptional<Klass>
+  br bb3(%2 : $FakeOptional<Klass>)
+
+bb2:
+  %4 = enum $FakeOptional<Klass>, #FakeOptional.some!enumelt, %0 : $Klass
+  br bb3(%4 : $FakeOptional<Klass>)
+
+bb3(%6 : @owned $FakeOptional<Klass>):
+  specify_test "simplify_cfg_simplify_switch_enum_block @instruction[7]"
+  switch_enum %6 : $FakeOptional<Klass>, case #FakeOptional.some!enumelt: bb4, case #FakeOptional.none!enumelt: bb5
+
+bb4(%8 : @owned $Klass):
+  destroy_value %8 : $Klass
+  br bb6
+
+bb5:
+  br bb6
+
+bb6:
+  %t = tuple ()
+  return %t : $()
+}

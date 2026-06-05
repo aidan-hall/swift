@@ -2154,6 +2154,49 @@ bool SimplifyCFG::simplifySwitchEnumBlock(SwitchEnumInst *SEI) {
   if (!EnumCase)
     return false;
 
+  // In OSSA, when the operand is @owned, refuse the fold if any source EnumInst
+  // would survive afterwards. The fold replaces the consuming switch_enum with
+  // an unchecked_enum_data of the same operand. Leaving the original `enum`
+  // constructor in place creates two forwarding consumers of its payload once
+  // a later peephole simplifies `unchecked_enum_data(enum some, %X), some` back
+  // to `%X`. @guaranteed/none operands don't have forwarding consume semantics,
+  // so the fold remains safe there.
+  if (Fn.hasOwnership() &&
+      SEI->getOperand()->getOwnershipKind() == OwnershipKind::Owned) {
+    auto isFoldSafeSource = [](EnumInst *EI, SILInstruction *foldedUser) {
+      for (auto *use : EI->getUses()) {
+        SILInstruction *user = use->getUser();
+        if (user == foldedUser)
+          continue;
+        if (user->isDebugInstruction())
+          continue;
+        return false;
+      }
+      return true;
+    };
+
+    SILValue Op = SEI->getOperand();
+    if (auto *EI = dyn_cast<EnumInst>(Op)) {
+      if (!isFoldSafeSource(EI, SEI))
+        return false;
+    } else if (auto *Arg = dyn_cast<SILPhiArgument>(Op)) {
+      llvm::SmallVector<std::pair<SILBasicBlock *, SILValue>, 8> Incoming;
+      if (!Arg->getIncomingPhiValues(Incoming))
+        return false;
+      for (auto &P : Incoming) {
+        auto *EI = dyn_cast<EnumInst>(P.second);
+        if (!EI)
+          return false;
+        if (!isFoldSafeSource(EI, P.first->getTerminator()))
+          return false;
+      }
+    } else {
+      // No identifiable source EnumInst (e.g. operand dominated by an outer
+      // switch_enum). Conservatively bail to avoid the same hazard.
+      return false;
+    }
+  }
+
   auto *LiveBlock = SEI->getCaseDestination(EnumCase.get());
   auto *ThisBB = SEI->getParent();
 
