@@ -1824,6 +1824,8 @@ void SILSerializer::writeSILInstruction(const SILInstruction &SI) {
       Attr = HTE->isMandatory();
     } else if (auto *DVI = dyn_cast<DestroyValueInst>(&SI)) {
       Attr = unsigned(DVI->poisonRefs()) | (unsigned(DVI->isDeadEnd()) << 1);
+    } else if (auto *DAI = dyn_cast<DestroyAddrInst>(&SI)) {
+      Attr = unsigned(DAI->isDeadEnd());
     } else if (auto *BCMI = dyn_cast<BeginCOWMutationInst>(&SI)) {
       Attr = BCMI->isNative();
     } else if (auto *ECMI = dyn_cast<EndCOWMutationInst>(&SI)) {

@@ -3477,7 +3477,6 @@ bool SILParser::parseSpecificSILInstruction(SILBuilder &B,
     UNARY_INSTRUCTION(ExtendLifetime)
     UNARY_INSTRUCTION(CopyBlock)
     UNARY_INSTRUCTION(IsUnique)
-    UNARY_INSTRUCTION(DestroyAddr)
     UNARY_INSTRUCTION(CopyValue)
     UNARY_INSTRUCTION(ExplicitCopyValue)
     UNARY_INSTRUCTION(EndBorrow)
@@ -3543,6 +3542,14 @@ bool SILParser::parseSpecificSILInstruction(SILBuilder &B,
     if (parseTypedValueRef(Val, B) || parseSILDebugLocation(InstLoc, B))
       return true;
     ResultVal = B.createDestroyValue(InstLoc, Val, poisonRefs, isDeadEnd);
+    break;
+  }
+  case SILInstructionKind::DestroyAddrInst: {
+    bool isDeadEnd = false;
+    if (parseSILOptional(isDeadEnd, *this, "dead_end") ||
+        parseTypedValueRef(Val, B) || parseSILDebugLocation(InstLoc, B))
+      return true;
+    ResultVal = B.createDestroyAddr(InstLoc, Val, IsDeadEnd_t(isDeadEnd));
     break;
   }
   case SILInstructionKind::BeginCOWMutationInst: {

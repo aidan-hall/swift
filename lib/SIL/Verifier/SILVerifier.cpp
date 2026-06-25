@@ -4225,6 +4225,10 @@ public:
             "Operand of destroy_addr must be address");
     require(checkTypeABIAccessible(F, DI->getOperand()->getType()),
             "cannot directly destroy type with inaccessible ABI");
+    if (DI->isDeadEnd()) {
+      require(getDeadEndBlocks().isDeadEnd(DI->getParentBlock()),
+              "a dead_end destroy_addr must be in a dead-end block");
+    }
   }
 
   void checkBindMemoryInst(BindMemoryInst *BI) {

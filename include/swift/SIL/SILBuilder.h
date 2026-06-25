@@ -2561,9 +2561,10 @@ public:
     return insert(new (getModule()) DeallocExistentialBoxInst(
         getSILDebugLocation(Loc), concreteType, operand));
   }
-  DestroyAddrInst *createDestroyAddr(SILLocation Loc, SILValue Operand) {
-    return insert(new (getModule())
-                      DestroyAddrInst(getSILDebugLocation(Loc), Operand));
+  DestroyAddrInst *createDestroyAddr(SILLocation Loc, SILValue Operand,
+                                     IsDeadEnd_t isDeadEnd = IsntDeadEnd) {
+    return insert(new (getModule()) DestroyAddrInst(getSILDebugLocation(Loc),
+                                                    Operand, isDeadEnd));
   }
 
   ProjectBoxInst *createProjectBox(SILLocation Loc, SILValue boxOperand,

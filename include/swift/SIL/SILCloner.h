@@ -3626,7 +3626,8 @@ SILCloner<ImplClass>::visitDestroyAddrInst(DestroyAddrInst *Inst) {
 
   recordClonedInstruction(
       Inst, getBuilder().createDestroyAddr(getOpLocation(Inst->getLoc()),
-                                           getOpValue(Inst->getOperand())));
+                                           getOpValue(Inst->getOperand()),
+                                           Inst->isDeadEnd()));
 }
 
 template<typename ImplClass>

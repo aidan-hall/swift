@@ -2754,7 +2754,6 @@ bool SILDeserializer::readSILInstruction(SILFunction *Fn,
   UNARY_INSTRUCTION(DeinitExistentialAddr)
   UNARY_INSTRUCTION(DeinitExistentialValue)
   UNARY_INSTRUCTION(EndBorrow)
-  UNARY_INSTRUCTION(DestroyAddr)
   UNARY_INSTRUCTION(Return)
   UNARY_INSTRUCTION(Throw)
   UNARY_INSTRUCTION(ClassifyBridgeObject)
@@ -2837,6 +2836,17 @@ bool SILDeserializer::readSILInstruction(SILFunction *Fn,
             Builder.maybeGetFunction(), ValID,
             getSILType(MF->getType(TyID), (SILValueCategory)TyCategory, Fn)),
         poisonRefs, isDeadEnd);
+    break;
+  }
+  case SILInstructionKind::DestroyAddrInst: {
+    assert(RecordKind == SIL_ONE_OPERAND && "Layout should be OneOperand.");
+    IsDeadEnd_t isDeadEnd = IsDeadEnd_t(Attr & 0x1);
+    ResultInst = Builder.createDestroyAddr(
+        Loc,
+        getLocalValue(
+            Builder.maybeGetFunction(), ValID,
+            getSILType(MF->getType(TyID), (SILValueCategory)TyCategory, Fn)),
+        isDeadEnd);
     break;
   }
 

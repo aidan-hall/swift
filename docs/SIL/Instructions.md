@@ -1303,7 +1303,7 @@ checker after it has emitted an error diagnostic to preserve the general
 ### destroy_addr
 
 ```
-sil-instruction ::= 'destroy_addr' sil-operand
+sil-instruction ::= 'destroy_addr' '[dead_end]'? sil-operand
 
 destroy_addr %0 : $*T
 // %0 must be of an address $*T type
@@ -1325,6 +1325,10 @@ If `T` is a trivial type, then `destroy_addr` can be safely eliminated.
 However, a memory location `%a` must not be accessed after
 `destroy_addr %a` (which has not yet been eliminated) regardless of its
 type.
+
+The optional `dead_end` attribute specifies that this instruction was
+created during lifetime completion and is eligible for deletion during
+OSSA lowering.
 
 ### tuple_addr_constructor
 

@@ -768,6 +768,11 @@ final public class DestroyValueInst : Instruction, UnaryInstruction {
 final public class DestroyAddrInst : Instruction, UnaryInstruction {
   public var destroyedAddress: Value { operand.value }
 
+  /// True if this `destroy_addr` is inside a dead-end block is only needed to formally
+  /// end the lifetime of its operand.
+  /// Such `destroy_addr` instructions are lowered to no-ops.
+  public var isDeadEnd: Bool { bridged.DestroyAddrInst_isDeadEnd() }
+
   public override var mayCallFunction: Bool { true }
 }
 

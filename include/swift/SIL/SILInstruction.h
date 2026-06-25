@@ -10171,8 +10171,18 @@ class DestroyAddrInst
 {
   friend SILBuilder;
 
-  DestroyAddrInst(SILDebugLocation DebugLoc, SILValue Operand)
-      : UnaryInstructionBase(DebugLoc, Operand) {}
+  USE_SHARED_UINT8;
+
+  DestroyAddrInst(SILDebugLocation DebugLoc, SILValue Operand,
+                  IsDeadEnd_t isDeadEnd)
+      : UnaryInstructionBase(DebugLoc, Operand) {
+    sharedUInt8().DestroyAddrInst.deadEnd = isDeadEnd;
+  }
+
+public:
+  IsDeadEnd_t isDeadEnd() const {
+    return IsDeadEnd_t(sharedUInt8().DestroyAddrInst.deadEnd);
+  }
 };
 
 /// Project out the address of the value in a box.

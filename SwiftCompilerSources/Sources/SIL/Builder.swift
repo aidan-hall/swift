@@ -472,8 +472,8 @@ public struct Builder {
   }
 
   @discardableResult
-  public func createDestroyAddr(address: Value) -> DestroyAddrInst {
-    return notifyNew(bridged.createDestroyAddr(address.bridged).getAs(DestroyAddrInst.self))
+  public func createDestroyAddr(address: Value, isDeadEnd: Bool = false) -> DestroyAddrInst {
+    return notifyNew(bridged.createDestroyAddr(address.bridged, isDeadEnd).getAs(DestroyAddrInst.self))
   }
 
   @discardableResult

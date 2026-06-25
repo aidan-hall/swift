@@ -1422,6 +1422,10 @@ bool BridgedInstruction::DestroyValueInst_isDeadEnd() const {
   return getAs<swift::DestroyValueInst>()->isDeadEnd();
 }
 
+bool BridgedInstruction::DestroyAddrInst_isDeadEnd() const {
+  return getAs<swift::DestroyAddrInst>()->isDeadEnd();
+}
+
 SwiftInt BridgedInstruction::EnumInst_caseIndex() const {
   return getAs<swift::EnumInst>()->getCaseIndex();
 }
@@ -2752,8 +2756,9 @@ BridgedInstruction BridgedBuilder::createDestroyValue(BridgedValue op, bool isDe
                                          swift::IsDeadEnd_t(isDeadEnd))};
 }
 
-BridgedInstruction BridgedBuilder::createDestroyAddr(BridgedValue op) const {
-  return {unbridged().createDestroyAddr(regularLoc(), op.getSILValue())};
+BridgedInstruction BridgedBuilder::createDestroyAddr(BridgedValue op, bool isDeadEnd) const {
+  return {unbridged().createDestroyAddr(regularLoc(), op.getSILValue(),
+                                        swift::IsDeadEnd_t(isDeadEnd))};
 }
 
 BridgedInstruction BridgedBuilder::createEndLifetime(BridgedValue op) const {
