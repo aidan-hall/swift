@@ -38,6 +38,10 @@ namespace Lowering {
   class TypeConverter;
 }
 
+namespace irgen {
+  class IRGenModule;
+}
+
 } // end namespace swift
   
 namespace swift {
@@ -342,6 +346,10 @@ public:
   /// 1) The type, or the referenced type of an address type, is loadable.
   /// 2) The SIL Module conventions uses lowered addresses
   bool isLoadableOrOpaque(const SILFunction &F) const;
+
+  /// True if this is a large loadable type.
+  /// Large loadable types must be lowered to be passed by address before IRGen.
+  bool isLargeLoadable(const SILFunction &F, irgen::IRGenModule &Mod) const;
 
   /// True if the type, or the referenced type of an address type, is
   /// address-only. This is the opposite of isLoadable.

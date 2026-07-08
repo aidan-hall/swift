@@ -117,7 +117,7 @@ private:
 };
 
 /// Utility to determine if this is a large loadable type
-static bool isLargeLoadableType(GenericEnvironment *GenericEnv, SILType t,
+bool swift::isLargeLoadableType(GenericEnvironment *GenericEnv, SILType t,
                                 irgen::IRGenModule &Mod) {
   if (t.isAddress() || t.isClassOrClassMetatype()) {
     return false;

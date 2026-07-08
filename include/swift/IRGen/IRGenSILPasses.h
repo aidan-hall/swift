@@ -12,9 +12,16 @@
 
 namespace swift {
 
+class SILType;
+class GenericEnvironment;
+
+namespace irgen {
+} // end namespace irgen
+
 class SILTransform;
 
 namespace irgen {
+class IRGenModule;
 
 /// Create a pass to hoist alloc_stack instructions with non-fixed size.
 SILTransform *createAllocStackHoisting();
@@ -22,4 +29,9 @@ SILTransform *createLoadableByAddress();
 SILTransform *createPackMetadataMarkerInserter();
 
 } // end namespace irgen
+
+/// Returns true if \p t is a large loadable type that the native calling
+/// convention requires to be passed indirectly.
+bool isLargeLoadableType(GenericEnvironment *GenericEnv, SILType t,
+                         irgen::IRGenModule &Mod);
 } // end namespace swift
