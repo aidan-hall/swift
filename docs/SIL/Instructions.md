@@ -3496,6 +3496,18 @@ Derives the address of the first element of a vector, i.e. a `Builtin.FixedArray
 from the address of the vector itself.
 Addresses of other vector elements can then be derived with `index_addr`.
 
+### vector_extract
+
+```
+sil-instruction ::= 'vector_extract' sil-operand ',' sil-operand
+
+%2 = vector_extract %0 : $Builtin.FixedArray<N, Element>, %1 : $Builtin.Int<n>
+// %0 must be a FixedArray object type $Builtin.FixedArray<N, Element>
+// %1 must be a builtin integer type
+// %2 will be of type $Element
+```
+
+
 ### ref_element_addr
 
 ```
