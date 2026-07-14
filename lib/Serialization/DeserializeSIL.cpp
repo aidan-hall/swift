@@ -2761,6 +2761,17 @@ bool SILDeserializer::readSILInstruction(SILFunction *Fn,
                       getSILType(Ty2, (SILValueCategory)TyCategory2, Fn)));
     break;
   }
+  case SILInstructionKind::VectorExtractInst: {
+    auto Ty = MF->getType(TyID);
+    auto Ty2 = MF->getType(TyID2);
+    ResultInst = Builder.createVectorExtract(
+        Loc,
+        getLocalValue(Builder.maybeGetFunction(), ValID,
+                      getSILType(Ty, (SILValueCategory)TyCategory, Fn)),
+        getLocalValue(Builder.maybeGetFunction(), ValID2,
+                      getSILType(Ty2, (SILValueCategory)TyCategory2, Fn)));
+    break;
+  }
   case SILInstructionKind::IncrementProfilerCounterInst: {
     auto PGOFuncName = MF->getIdentifierText(ValID);
     auto PGOHashStr = MF->getIdentifierText(ValID2);

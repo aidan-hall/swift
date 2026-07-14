@@ -299,6 +299,8 @@ public:
         &forwardingInst->getOperandRef(RefToBridgeObjectInst::ConvertedOperand);
     case SILInstructionKind::TuplePackExtractInst:
       return &forwardingInst->getOperandRef(TuplePackExtractInst::TupleOperand);
+    case SILInstructionKind::VectorExtractInst:
+      return &forwardingInst->getOperandRef(VectorExtractInst::VectorOperand);
     case SILInstructionKind::BorrowedFromInst:
       return &forwardingInst->getOperandRef(0);
     case SILInstructionKind::ImplicitActorToOpaqueIsolationCastInst:

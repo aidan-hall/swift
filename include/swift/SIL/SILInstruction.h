@@ -7157,6 +7157,51 @@ public:
   SILValue getVector() const { return getOperand(); }
 };
 
+/// Extract an element from a loadable Builtin.FixedArray object value at a
+/// (compile-time-constant) Builtin integer index. Forwards ownership like
+/// tuple_extract.
+class VectorExtractInst final
+    : public InstructionBaseWithTrailingOperands<
+          SILInstructionKind::VectorExtractInst, VectorExtractInst,
+          OwnershipForwardingSingleValueInstruction> {
+public:
+  enum { VectorOperand = 0, IndexOperand = 1 };
+
+private:
+  friend SILBuilder;
+
+  VectorExtractInst(SILDebugLocation debugLoc, ArrayRef<SILValue> allOperands,
+                    SILType elementType,
+                    ValueOwnershipKind forwardingOwnershipKind)
+      : InstructionBaseWithTrailingOperands(allOperands, debugLoc, elementType,
+                                            forwardingOwnershipKind) {}
+
+  static VectorExtractInst *
+  create(SILFunction &F, SILDebugLocation debugLoc, SILValue vector,
+         SILValue index, SILType elementType,
+         ValueOwnershipKind forwardingOwnershipKind);
+
+public:
+  SILValue getVector() const { return getVectorOperand()->get(); }
+  SILValue getIndex() const { return getIndexOperand()->get(); }
+
+  Operand *getVectorOperand() { return &getAllOperands()[VectorOperand]; }
+  const Operand *getVectorOperand() const {
+    return &getAllOperands()[VectorOperand];
+  }
+
+  Operand *getIndexOperand() { return &getAllOperands()[IndexOperand]; }
+  const Operand *getIndexOperand() const {
+    return &getAllOperands()[IndexOperand];
+  }
+
+  CanBuiltinFixedArrayType getFixedArrayType() const {
+    return getVector()->getType().castTo<BuiltinFixedArrayType>();
+  }
+
+  SILType getElementType() const { return getType(); }
+};
+
 /// TupleInst - Represents a constructed loadable tuple.
 class TupleInst final : public InstructionBaseWithTrailingOperands<
                             SILInstructionKind::TupleInst, TupleInst,
@@ -12090,6 +12135,7 @@ OwnershipForwardingSingleValueInstruction::classof(SILInstructionKind kind) {
   case SILInstructionKind::MarkUninitializedInst:
   case SILInstructionKind::TupleExtractInst:
   case SILInstructionKind::TuplePackExtractInst:
+  case SILInstructionKind::VectorExtractInst:
   case SILInstructionKind::StructExtractInst:
   case SILInstructionKind::DifferentiableFunctionExtractInst:
   case SILInstructionKind::LinearFunctionExtractInst:

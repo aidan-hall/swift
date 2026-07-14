@@ -2838,6 +2838,26 @@ TuplePackExtractInst::create(SILFunction &F, SILDebugLocation debugLoc,
                                              forwardingOwnershipKind);
 }
 
+VectorExtractInst *
+VectorExtractInst::create(SILFunction &F, SILDebugLocation debugLoc,
+                          SILValue vector, SILValue index, SILType elementType,
+                          ValueOwnershipKind forwardingOwnershipKind) {
+  assert(vector->getType().isObject() &&
+         vector->getType().is<BuiltinFixedArrayType>());
+  assert(index->getType().isObject() &&
+         index->getType().is<BuiltinIntegerType>());
+
+  SmallVector<SILValue, 8> allOperands;
+  allOperands.push_back(vector);
+  allOperands.push_back(index);
+  collectTypeDependentOperands(allOperands, F, elementType);
+
+  auto size = totalSizeToAlloc<swift::Operand>(allOperands.size());
+  auto buffer = F.getModule().allocateInst(size, alignof(VectorExtractInst));
+  return ::new (buffer) VectorExtractInst(debugLoc, allOperands, elementType,
+                                          forwardingOwnershipKind);
+}
+
 BeginCOWMutationInst::BeginCOWMutationInst(SILDebugLocation loc,
                                SILValue operand,
                                ArrayRef<SILType> resultTypes,

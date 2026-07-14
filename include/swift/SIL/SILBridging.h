@@ -1438,6 +1438,8 @@ struct BridgedBuilder{
                                                                      SwiftInt numBaseElements) const;
   SWIFT_IMPORT_UNSAFE BRIDGED_INLINE BridgedInstruction createVector(BridgedValueArray arguments) const;
   SWIFT_IMPORT_UNSAFE BRIDGED_INLINE BridgedInstruction createVectorBaseAddr(BridgedValue vector) const;
+  SWIFT_IMPORT_UNSAFE BRIDGED_INLINE BridgedInstruction createVectorExtract(BridgedValue vector,
+                                                                             BridgedValue index) const;
   SWIFT_IMPORT_UNSAFE BRIDGED_INLINE BridgedInstruction createGlobalAddr(BridgedGlobalVar global,
                                                                          OptionalBridgedValue dependencyToken) const;
   SWIFT_IMPORT_UNSAFE BRIDGED_INLINE BridgedInstruction createGlobalValue(BridgedGlobalVar global,

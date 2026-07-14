@@ -2045,6 +2045,26 @@ public:
         getSILDebugLocation(loc), vector, elemtTy.getAddressType()));
   }
 
+  VectorExtractInst *createVectorExtract(SILLocation loc, SILValue vector,
+                                         SILValue index) {
+    auto arrayTy = vector->getType().getAs<BuiltinFixedArrayType>();
+    ASSERT(arrayTy && "operand of vector_extract must be a builtin array type");
+    auto elemTy = getFunction().getLoweredType(
+        Lowering::AbstractionPattern::getOpaque(), arrayTy->getElementType());
+    return createVectorExtract(loc, vector, index, elemTy.getObjectType(),
+                               vector->getOwnershipKind());
+  }
+
+  VectorExtractInst *
+  createVectorExtract(SILLocation loc, SILValue vector, SILValue index,
+                      SILType elementType,
+                      ValueOwnershipKind forwardingOwnershipKind) {
+    return insert(VectorExtractInst::create(getFunction(),
+                                            getSILDebugLocation(loc), vector,
+                                            index, elementType,
+                                            forwardingOwnershipKind));
+  }
+
   RefElementAddrInst *createRefElementAddr(SILLocation Loc, SILValue Operand,
                                            VarDecl *Field, SILType ResultTy,
                                            bool IsImmutable = false) {

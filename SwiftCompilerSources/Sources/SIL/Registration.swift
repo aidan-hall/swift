@@ -124,6 +124,7 @@ private func registerSILClasses() {
   register(ObjectInst.self)
   register(VectorInst.self)
   register(VectorBaseAddrInst.self)
+  register(VectorExtractInst.self)
   register(TuplePackExtractInst.self)
   register(TuplePackElementAddrInst.self)
   register(PackElementGetInst.self)

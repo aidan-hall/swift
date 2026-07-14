@@ -1194,6 +1194,14 @@ BUILTIN_MISC_OPERATION_WITH_SILGEN(AddressOfRawLayout, "addressOfRawLayout", "n"
 /// memory becomes the result of the call.
 BUILTIN_SIL_OPERATION(Emplace, "emplace", Special)
 
+/// extractElement_FixedArray has type
+///   <let Count: Int, Element> (Builtin.FixedArray<Count, Element>,
+///                              Builtin.Word) -> Element
+///
+/// Extracts an element from a loadable Builtin.FixedArray value at a
+/// compile-time-constant index. Lowers to the vector_extract SIL instruction.
+BUILTIN_SIL_OPERATION(ExtractElement_FixedArray, "extractElementFixedArray", Special)
+
 /// Builtins for instrumentation added by sanitizers during SILGen.
 #ifndef BUILTIN_SANITIZER_OPERATION
 #define BUILTIN_SANITIZER_OPERATION(Id, Name, Attrs) BUILTIN(Id, Name, Attrs)

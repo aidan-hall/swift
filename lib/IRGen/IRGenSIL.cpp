@@ -1375,6 +1375,7 @@ public:
   void visitStructExtractInst(StructExtractInst *i);
   void visitStructElementAddrInst(StructElementAddrInst *i);
   void visitVectorBaseAddrInst(VectorBaseAddrInst *i);
+  void visitVectorExtractInst(VectorExtractInst *i);
   void visitRefElementAddrInst(RefElementAddrInst *i);
   void visitRefTailAddrInst(RefTailAddrInst *i);
 
@@ -5787,6 +5788,52 @@ void IRGenSILFunction::visitVectorBaseAddrInst(VectorBaseAddrInst *i) {
   auto &ti = getTypeInfo(i->getType());
   auto result = Builder.CreateElementBitCast(addr, ti.getStorageType());
   setLoweredAddress(i, result);
+}
+
+void IRGenSILFunction::visitVectorExtractInst(VectorExtractInst *i) {
+  auto &resultTI = getTypeInfo(i->getType());
+  unsigned elementExplosionSize = resultTI.as<LoadableTypeInfo>()
+                                       .getExplosionSize();
+
+  auto *lit = dyn_cast<IntegerLiteralInst>(i->getIndex());
+  if (!lit) {
+    IGM.error(i->getLoc().getSourceLoc(),
+              "vector_extract requires a constant integer index");
+    Explosion undef;
+    emitFakeExplosion(resultTI, undef);
+    setLoweredExplosion(i, undef);
+    return;
+  }
+
+  auto arrayTy = i->getFixedArrayType();
+  auto fixedSize = arrayTy->getFixedInhabitedSize();
+  if (!fixedSize) {
+    IGM.error(i->getLoc().getSourceLoc(),
+              "vector_extract requires a Builtin.FixedArray with a known "
+              "positive number of elements");
+    Explosion undef;
+    emitFakeExplosion(resultTI, undef);
+    setLoweredExplosion(i, undef);
+    return;
+  }
+
+  uint64_t index = lit->getValue().getZExtValue();
+  if (index >= *fixedSize) {
+    IGM.error(i->getLoc().getSourceLoc(),
+              "vector_extract index is out of range");
+    Explosion undef;
+    emitFakeExplosion(resultTI, undef);
+    setLoweredExplosion(i, undef);
+    return;
+  }
+
+  Explosion fullVector = getLoweredExplosion(i->getVector());
+  unsigned begin = static_cast<unsigned>(index) * elementExplosionSize;
+  unsigned end = begin + elementExplosionSize;
+  Explosion output;
+  output.add(fullVector.getRange(begin, end));
+  (void)fullVector.claimAll();
+  setLoweredExplosion(i, output);
 }
 
 void IRGenSILFunction::visitRefElementAddrInst(swift::RefElementAddrInst *i) {

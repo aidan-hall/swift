@@ -2042,6 +2042,44 @@ static ValueDecl *getExtractElementOperation(ASTContext &Context, Identifier Id,
   return getBuiltinFunction(Id, { VecTy, IndexTy }, ResultTy);
 }
 
+static ValueDecl *getExtractElementFixedArrayOperation(ASTContext &ctx,
+                                                       Identifier id) {
+  // <let Count: Int, Element> (Builtin.FixedArray<Count, Element>,
+  //                            Builtin.Word) -> Element
+  ModuleDecl *M = ctx.TheBuiltinModule;
+  DeclContext *DC = &M->getMainFile(FileUnitKind::Builtin);
+
+  auto *countDecl = GenericTypeParamDecl::createImplicit(
+      DC, ctx.getIdentifier("Count"), /*depth=*/0, /*index=*/0,
+      GenericTypeParamKind::Value);
+  auto *elementDecl = GenericTypeParamDecl::createImplicit(
+      DC, ctx.getIdentifier("Element"), /*depth=*/0, /*index=*/1,
+      GenericTypeParamKind::Type);
+
+  auto *genericParamList = GenericParamList::create(
+      ctx, SourceLoc(), {countDecl, elementDecl}, SourceLoc());
+
+  auto countTy =
+      GenericTypeParamType::getValue(/*depth=*/0, /*index=*/0,
+                                     ctx.getIntType(), ctx);
+  auto elementTy =
+      GenericTypeParamType::getType(/*depth=*/0, /*index=*/1, ctx);
+  auto sig = GenericSignature::get({countTy, elementTy}, {});
+
+  auto arrayTy = BuiltinFixedArrayType::get(countTy->getCanonicalType(),
+                                            elementTy->getCanonicalType());
+  auto indexTy = BuiltinIntegerType::getWordType(ctx);
+
+  SmallVector<AnyFunctionType::Param, 2> params;
+  params.emplace_back(Type(arrayTy));
+  params.emplace_back(Type(indexTy));
+
+  return getBuiltinGenericFunction(id, params, elementTy, genericParamList, sig,
+                                   /*Async=*/false, BuiltinThrowsKind::None,
+                                   /*ThrownError=*/Type(),
+                                   /*SendingResult=*/false);
+}
+
 static ValueDecl *getInsertElementOperation(ASTContext &Context, Identifier Id,
                                             Type FirstTy, Type SecondTy,
                                             Type ThirdTy) {
@@ -3581,6 +3619,10 @@ ValueDecl *swift::getBuiltinValueDecl(ASTContext &Context, Identifier Id) {
     
   case BuiltinValueKind::Emplace:
     return getEmplace(Context, Id);
+
+  case BuiltinValueKind::ExtractElement_FixedArray:
+    if (!Types.empty()) return nullptr;
+    return getExtractElementFixedArrayOperation(Context, Id);
 
   case BuiltinValueKind::TaskAddCancellationHandler:
     return getTaskAddCancellationHandler(Context, Id);

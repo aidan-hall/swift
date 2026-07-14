@@ -2220,6 +2220,18 @@ static ManagedValue emitBuiltinEmplace(SILGenFunction &SGF,
   return SGF.B.createLoadTake(loc, result);
 }
 
+static ManagedValue
+emitBuiltinExtractElement_FixedArray(SILGenFunction &SGF, SILLocation loc,
+                                     SubstitutionMap subs,
+                                     ArrayRef<ManagedValue> args, SGFContext C) {
+  assert(args.size() == 2 &&
+         "Builtin.extractElement_FixedArray takes two arguments");
+  ManagedValue borrowedVector = SGF.emitManagedBeginBorrow(loc, args[0].getValue());
+  SILValue index = args[1].getValue();
+  auto *inst = SGF.B.createVectorExtract(loc, borrowedVector.getValue(), index);
+  return ManagedValue::forBorrowedRValue(inst);
+}
+
 static ManagedValue emitBuiltinTaskAddCancellationHandler(
     SILGenFunction &SGF, SILLocation loc, SubstitutionMap subs,
     ArrayRef<ManagedValue> args, SGFContext C) {

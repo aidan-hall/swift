@@ -241,6 +241,15 @@ extension TuplePackExtractInst : ForwardingInstruction {
   public var canForwardOwnedValues: Bool { false }
 }
 
+extension VectorExtractInst : ForwardingInstruction {
+  public var singleForwardedOperand: Operand? { return vectorOperand }
+
+  public var preservesIdentity: Bool { false }
+  public var preservesRepresentation: Bool { true }
+  public var canForwardGuaranteedValues: Bool { true }
+  public var canForwardOwnedValues: Bool { false }
+}
+
 // -----------------------------------------------------------------------------
 // conversion instructions
 

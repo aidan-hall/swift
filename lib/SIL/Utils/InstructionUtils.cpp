@@ -582,6 +582,7 @@ RuntimeEffect swift::getRuntimeEffect(SILInstruction *inst, SILType &impactType)
   case SILInstructionKind::StructInst:
   case SILInstructionKind::StructExtractInst:
   case SILInstructionKind::VectorBaseAddrInst:
+  case SILInstructionKind::VectorExtractInst:
   case SILInstructionKind::RefElementAddrInst:
   case SILInstructionKind::EnumInst:
   case SILInstructionKind::UncheckedEnumDataInst:
