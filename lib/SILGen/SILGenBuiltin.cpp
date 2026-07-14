@@ -2226,9 +2226,28 @@ emitBuiltinExtractElement_FixedArray(SILGenFunction &SGF, SILLocation loc,
                                      ArrayRef<ManagedValue> args, SGFContext C) {
   assert(args.size() == 2 &&
          "Builtin.extractElement_FixedArray takes two arguments");
-  ManagedValue borrowedVector = SGF.emitManagedBeginBorrow(loc, args[0].getValue());
+  ManagedValue vector = args[0];
   SILValue index = args[1].getValue();
-  auto *inst = SGF.B.createVectorExtract(loc, borrowedVector.getValue(), index);
+
+  // When the FixedArray is passed as an address (e.g. from a generic caller
+  // where the type is address-only), project the element's address rather
+  // than trying to load the whole aggregate: vector_base_addr + index_addr,
+  // then load or copy the element depending on loadability.
+  if (vector.getType().isAddress()) {
+    SILValue baseAddr =
+        SGF.B.createVectorBaseAddr(loc, vector.getValue());
+    SILValue eltAddr =
+        SGF.B.createIndexAddr(loc, baseAddr, index,
+                              /*needsStackProtection=*/false,
+                              /*isProjection=*/true);
+    auto &eltTL = SGF.getTypeLowering(eltAddr->getType());
+    return SGF.emitLoad(loc, eltAddr, eltTL, C, IsNotTake);
+  }
+
+  ManagedValue borrowedVector =
+      SGF.emitManagedBeginBorrow(loc, vector.getValue());
+  auto *inst =
+      SGF.B.createVectorExtract(loc, borrowedVector.getValue(), index);
   return ManagedValue::forBorrowedRValue(inst);
 }
 

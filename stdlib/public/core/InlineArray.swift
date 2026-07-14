@@ -383,6 +383,20 @@ extension InlineArray where Element: Copyable {
   }
 }
 
+@available(SwiftStdlib 6.5, *)
+extension InlineArray where Element: Copyable {
+  /// Returns a copy of the element at the specified position.
+  ///
+  /// Testing-only alternative to `subscript(_:).borrow` that exercises the
+  /// `vector_extract` SIL instruction.
+  @available(SwiftStdlib 6.5, *)
+  @_alwaysEmitIntoClient
+  public func getElement(_ i: Index) -> Element {
+    _checkIndex(i)
+    return Builtin.extractElementFixedArray(_storage, i._builtinWordValue)
+  }
+}
+
 //===----------------------------------------------------------------------===//
 // MARK: - Collection APIs
 //===----------------------------------------------------------------------===//
