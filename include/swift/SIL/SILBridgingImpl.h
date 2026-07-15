@@ -3020,6 +3020,12 @@ BridgedInstruction BridgedBuilder::createVectorBaseAddr(BridgedValue vector) con
   return {unbridged().createVectorBaseAddr(regularLoc(), vector.getSILValue())};
 }
 
+BridgedInstruction BridgedBuilder::createVectorExtract(BridgedValue vector,
+                                                      BridgedValue index) const {
+  return {unbridged().createVectorExtract(regularLoc(), vector.getSILValue(),
+                                          index.getSILValue())};
+}
+
 BridgedInstruction BridgedBuilder::createGlobalAddr(BridgedGlobalVar global,
                                                     OptionalBridgedValue dependencyToken) const {
   return {unbridged().createGlobalAddr(regularLoc(), global.getGlobal(), dependencyToken.getSILValue())};

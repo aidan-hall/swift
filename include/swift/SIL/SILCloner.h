@@ -2838,6 +2838,21 @@ SILCloner<ImplClass>::visitVectorBaseAddrInst(VectorBaseAddrInst *Inst) {
 
 template<typename ImplClass>
 void
+SILCloner<ImplClass>::visitVectorExtractInst(VectorExtractInst *Inst) {
+  getBuilder().setCurrentDebugScope(getOpScope(Inst->getDebugScope()));
+  recordClonedInstruction(
+      Inst, getBuilder().createVectorExtract(
+                getOpLocation(Inst->getLoc()),
+                getOpValue(Inst->getVector()),
+                getOpValue(Inst->getIndex()),
+                getOpType(Inst->getElementType()),
+                getBuilder().hasOwnership()
+                    ? Inst->getForwardingOwnershipKind()
+                    : ValueOwnershipKind(OwnershipKind::None)));
+}
+
+template<typename ImplClass>
+void
 SILCloner<ImplClass>::visitRefElementAddrInst(RefElementAddrInst *Inst) {
   getBuilder().setCurrentDebugScope(getOpScope(Inst->getDebugScope()));
   recordClonedInstruction(

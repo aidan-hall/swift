@@ -224,6 +224,14 @@ ValueOwnershipKind ValueOwnershipKindClassifier::visitTupleExtractInst(TupleExtr
   return OwnershipKind::Guaranteed;
 }
 
+ValueOwnershipKind
+ValueOwnershipKindClassifier::visitVectorExtractInst(VectorExtractInst *vei) {
+  if (vei->getType().isTrivial(*vei->getFunction()) ||
+      vei->getVector()->getOwnershipKind() == OwnershipKind::None)
+    return OwnershipKind::None;
+  return OwnershipKind::Guaranteed;
+}
+
 #define CONSTANT_OR_NONE_OWNERSHIP_INST(OWNERSHIP, INST)                       \
   ValueOwnershipKind ValueOwnershipKindClassifier::visit##INST##Inst(          \
       INST##Inst *I) {                                                         \

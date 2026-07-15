@@ -2736,6 +2736,10 @@ public:
   void visitVectorBaseAddrInst(VectorBaseAddrInst *vbai) {
     *this << getIDAndType(vbai->getVector());
   }
+  void visitVectorExtractInst(VectorExtractInst *vei) {
+    *this << getIDAndType(vei->getVector()) << ", "
+          << getIDAndType(vei->getIndex());
+  }
   void visitRefElementAddrInst(RefElementAddrInst *EI) {
     *this << (EI->isImmutable() ? "[immutable] " : "")
           << getIDAndType(EI->getOperand()) << ", #";

@@ -1303,6 +1303,15 @@ bb0(%0 : $*Builtin.FixedArray<10, Int>):
   return %2
 }
 
+// CHECK-LABEL: sil @vector_extract :
+// CHECK:         %2 = vector_extract %0 : $Builtin.FixedArray<10, Int>, %1 : $Builtin.Word
+// CHECK-LABEL: } // end sil function 'vector_extract'
+sil @vector_extract : $@convention(thin) (Builtin.FixedArray<10, Int>, Builtin.Word) -> Int {
+bb0(%0 : $Builtin.FixedArray<10, Int>, %1 : $Builtin.Word):
+  %2 = vector_extract %0 : $Builtin.FixedArray<10, Int>, %1 : $Builtin.Word
+  return %2
+}
+
 sil_global @staticProp: $Int
 
 // CHECK-LABEL: sil private @globalinit_func0 : $@convention(thin) () -> () {

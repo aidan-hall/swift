@@ -4308,6 +4308,25 @@ public:
     }
   }
 
+  void checkVectorExtractInst(VectorExtractInst *VEI) {
+    auto arrayTy = requireObjectType(BuiltinFixedArrayType, VEI->getVector(),
+                                     "Operand of vector_extract");
+    require(VEI->getIndex()->getType().isObject(),
+            "vector_extract index must be an object");
+    require(VEI->getIndex()->getType().is<BuiltinIntegerType>(),
+            "vector_extract index must be of a builtin integer type");
+    require(VEI->getType().isObject(),
+            "result of vector_extract must be object");
+    require(VEI->getForwardingOwnershipKind() == OwnershipKind::None ||
+                VEI->getForwardingOwnershipKind() == OwnershipKind::Guaranteed,
+            "invalid forwarding ownership kind on vector_extract instruction");
+    if (VEI->getModule().getStage() != SILStage::Lowered) {
+      requireSameType(VEI->getType().getASTType(), arrayTy->getElementType(),
+                      "type of vector_extract does not match element type of "
+                      "Builtin.FixedArray");
+    }
+  }
+
   void checkStructExtractInst(StructExtractInst *EI) {
     SILType operandTy = EI->getOperand()->getType();
     require(operandTy.isObject(),

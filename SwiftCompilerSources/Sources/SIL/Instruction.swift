@@ -1738,6 +1738,12 @@ final public class VectorBaseAddrInst : SingleValueInstruction, UnaryInstruction
   public var vector: Value { operand.value }
 }
 
+final public class VectorExtractInst : SingleValueInstruction {
+  public var vector: Value { operands[0].value }
+  public var index: Value { operands[1].value }
+  public var vectorOperand: Operand { operands[0] }
+}
+
 public enum DifferentiableFunctionTypeComponent: Int {
   case original = 0
   case jvp = 1

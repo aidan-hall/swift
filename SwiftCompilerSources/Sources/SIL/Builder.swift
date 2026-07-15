@@ -716,6 +716,10 @@ public struct Builder {
     return notifyNew(bridged.createVectorBaseAddr(vector.bridged).getAs(VectorBaseAddrInst.self))
   }
 
+  public func createVectorExtract(vector: Value, index: Value) -> VectorExtractInst {
+    return notifyNew(bridged.createVectorExtract(vector.bridged, index.bridged).getAs(VectorExtractInst.self))
+  }
+
   public func createGlobalAddr(global: GlobalVariable, dependencyToken: Value?) -> GlobalAddrInst {
     return notifyNew(bridged.createGlobalAddr(global.bridged, dependencyToken.bridged).getAs(GlobalAddrInst.self))
   }
