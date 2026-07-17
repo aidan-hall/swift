@@ -599,8 +599,6 @@ struct StructLoweringState {
   SmallVector<SwitchEnumInst *, 16> switchEnumInstsToMod;
   // All struct_extract instrs that should be converted to struct_element_addr
   SmallVector<StructExtractInst *, 16> structExtractInstsToMod;
-  // All vector_extract instrs that should be converted to vector_base_addr/index_addr
-  SmallVector<VectorExtractInst *, 16> vectorExtractInstsToMod;
   // All tuple instructions for which the return type is a function type
   SmallVector<SingleValueInstruction *, 8> tupleInstsToMod;
   // All allock stack instructions to modify
@@ -684,7 +682,6 @@ protected:
   void visitStoreInst(StoreInst *instr);
   void visitSwitchEnumInst(SwitchEnumInst *instr);
   void visitStructExtractInst(StructExtractInst *instr);
-  void visitVectorExtractInst(VectorExtractInst *instr);
   void visitRetainInst(RetainValueInst *instr);
   void visitReleaseInst(ReleaseValueInst *instr);
   void visitResultTyInst(SingleValueInstruction *instr);
@@ -991,14 +988,6 @@ void LargeValueVisitor::visitStructExtractInst(StructExtractInst *instr) {
   }
 }
 
-void LargeValueVisitor::visitVectorExtractInst(VectorExtractInst *instr) {
-  SILValue operand = instr->getVector();
-  if (std::find(pass.largeLoadableArgs.begin(), pass.largeLoadableArgs.end(),
-                operand) != pass.largeLoadableArgs.end()) {
-    pass.vectorExtractInstsToMod.push_back(instr);
-  }
-}
-
 void LargeValueVisitor::visitMakeBorrowInst(MakeBorrowInst *instr) {
   SILValue operand = instr->getOperand();
 
@@ -1296,15 +1285,6 @@ void LoadableStorageAllocation::replaceLoadWithCopyAddr(
       }
       break;
     }
-    case SILInstructionKind::VectorExtractInst: {
-      auto *instToInsert = cast<VectorExtractInst>(userIns);
-      if (std::find(pass.vectorExtractInstsToMod.begin(),
-                    pass.vectorExtractInstsToMod.end(),
-                    instToInsert) == pass.vectorExtractInstsToMod.end()) {
-        pass.vectorExtractInstsToMod.push_back(instToInsert);
-      }
-      break;
-    }    
     case SILInstructionKind::SwitchEnumInst: {
       auto *instToInsert = cast<SwitchEnumInst>(userIns);
       if (std::find(pass.switchEnumInstsToMod.begin(),
@@ -1464,12 +1444,6 @@ void LoadableStorageAllocation::replaceLoadWithCopyAddrForModifiable(
     case SILInstructionKind::StructExtractInst: {
       auto *instToInsert = cast<StructExtractInst>(userIns);
       pass.structExtractInstsToMod.push_back(instToInsert);
-      usesToMod.push_back(use);
-      break;
-    }
-    case SILInstructionKind::VectorExtractInst: {
-      auto *instToInsert = cast<VectorExtractInst>(userIns);
-      pass.vectorExtractInstsToMod.push_back(instToInsert);
       usesToMod.push_back(use);
       break;
     }
@@ -2159,52 +2133,6 @@ static void createStructElementAddrInstrAndLoad(LoadableStorageAllocation &alloc
   }
 }
 
-static IndexAddrInst *
-createVectorElementAddrFromExtract(SILBuilder &builder,
-                                   VectorExtractInst *instr,
-                                   SILValue newAddress) {
-  VectorBaseAddrInst *vba =
-      builder.createVectorBaseAddr(instr->getLoc(), newAddress);
-  return builder.createIndexAddr(instr->getLoc(), vba, instr->getIndex(),
-                                 /*needsStackProtection=*/true,
-                                 /*isProjection=*/true);
-}
-
-static void createVectorElementAddrAndLoad(LoadableStorageAllocation &allocator,
-                                       VectorExtractInst *instr,
-                                       StructLoweringState &pass) {
-  bool updateResultTy = pass.resultTyInstsToMod.count(instr) != 0;
-  if (updateResultTy) {
-    pass.resultTyInstsToMod.remove(instr);
-  }
-  SILBuilderWithScope builder(instr);
-  SingleValueInstruction *newInstr =
-      createVectorElementAddrFromExtract(builder, instr, instr->getVector());
-  // Load the vector element then see if we can get rid of the load:
-  LoadInst *loadArg = nullptr;
-  if (!pass.F->hasOwnership()) {
-    loadArg = builder.createLoad(newInstr->getLoc(), newInstr,
-                                 LoadOwnershipQualifier::Unqualified);
-  } else {
-    // vector_extract semantically copies the element it extracts.
-    loadArg = builder.createLoad(newInstr->getLoc(), newInstr,
-                                 LoadOwnershipQualifier::Copy);
-  }
-  instr->replaceAllUsesWith(loadArg);
-  instr->getParent()->erase(instr);
-
-  // If the load is of a function type - do not replace it.
-  if (isFuncOrOptionalFuncType(loadArg->getType())) {
-    return;
-  }
-
-  allocator.replaceLoad(loadArg);
-
-  if (updateResultTy) {
-    pass.resultTyInstsToMod.insert(newInstr);
-  }
-}
-
 static SILValue getMakeAddrBorrowOperand(SILBuilder &builder,
                                          MakeBorrowInst *orig) {
   // This doesn't support OSSA yet. That isn't typically a problem since this
@@ -2402,11 +2330,6 @@ static void rewriteFunction(StructLoweringState &pass,
       createStructElementAddrInstrAndLoad(allocator, instr, pass);
     }
 
-    while (!pass.vectorExtractInstsToMod.empty()) {
-      auto *instr = pass.vectorExtractInstsToMod.pop_back_val();
-      createVectorElementAddrAndLoad(allocator, instr, pass);
-    }
-
     while (!pass.makeBorrowInstsToMod.empty()) {
       auto *instr = pass.makeBorrowInstsToMod.pop_back_val();
       createMakeAddrBorrow(allocator, instr, pass);
@@ -2562,13 +2485,6 @@ static void rewriteFunction(StructLoweringState &pass,
       newInstr = resultTyBuilder.createStructExtract(
           Loc, convInstr->getOperand(), convInstr->getField(),
           newSILType.getObjectType());
-      break;
-    }
-    case SILInstructionKind::VectorExtractInst: {
-      auto *convInstr = cast<VectorExtractInst>(instr);
-      newInstr = resultTyBuilder.createVectorExtract(
-                                                     Loc, convInstr->getVector(), convInstr->getIndex(),
-                                                     newSILType.getObjectType(), convInstr->getOwnershipKind());
       break;
     }
     case SILInstructionKind::StructElementAddrInst: {
@@ -4601,23 +4517,6 @@ protected:
     assignment.markForDeletion(extract);
   }
 
-  void visitVectorExtractInst(VectorExtractInst *extract) {
-    auto builder = assignment.getBuilder(extract->getIterator());
-
-    // Handle undef operands.
-    if (isa<SILUndef>(extract->getVector())) {
-      auto extractAddr = assignment.createAllocStack(extract->getType());
-      assignment.mapValueToAddress(origValue, extractAddr);
-      assignment.markForDeletion(extract);
-      return;
-    }
-
-    auto opdAddr = assignment.getAddressForValue(extract->getVector());
-    auto projAddr = createVectorElementAddrFromExtract(builder, extract, opdAddr);
-    assignment.mapValueToAddress(origValue, projAddr);
-    assignment.markForDeletion(extract);
-  }
-
   void visitUncheckedEnumDataInst(UncheckedEnumDataInst *enumData) {
     auto builder = assignment.getBuilder(enumData->getIterator());
     auto opd = enumData->getOperand();
@@ -4930,19 +4829,6 @@ protected:
     auto projAddr = builder.createStructElementAddr(
         extract->getLoc(), opdAddr, extract->getField(),
         extract->getType().getAddressType());
-    auto load = builder.createLoad(extract->getLoc(), projAddr,
-                                   LoadOwnershipQualifier::Unqualified);
-    extract->replaceAllUsesWith(load);
-    assignment.markForDeletion(extract);
-  }
-
-  void visitVectorExtractInst(VectorExtractInst *extract) {
-    if (isa<SILUndef>(extract->getVector()))
-      return;
-
-    auto builder = assignment.getBuilder(extract->getIterator());
-    auto opdAddr = assignment.getAddressForValue(extract->getVector());
-    auto projAddr = createVectorElementAddrFromExtract(builder, extract, opdAddr);
     auto load = builder.createLoad(extract->getLoc(), projAddr,
                                    LoadOwnershipQualifier::Unqualified);
     extract->replaceAllUsesWith(load);
