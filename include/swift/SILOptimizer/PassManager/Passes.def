@@ -154,6 +154,8 @@ PASS(DeadObjectElimination, "dead-object-elimination",
      "Removes dead object, stack and array allocations")
 PASS(MandatoryDeadObjectElimination, "mandatory-dead-object-elimination",
      "Removes dead stack allocations")
+PASS(VectorIndexLowering, "vector-index-lowering",
+     "Lower vector value indexing instructions to address-based ones")
 
 PASS(ClosureSpecialization, "closure-specialization",
      "Specialize functions with closure arguments")

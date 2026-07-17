@@ -48,4 +48,5 @@ swift_compiler_sources(Optimizer
   TempLValueElimination.swift
   TempRValueElimination.swift
   PackSpecialization.swift
+  VectorIndexLowering.swift
 )
