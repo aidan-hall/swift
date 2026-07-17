@@ -3507,6 +3507,16 @@ sil-instruction ::= 'vector_extract' sil-operand ',' sil-operand
 // %2 will be of type $Element
 ```
 
+Extracts the element of a `Builtin.FixedArray` object value at the given
+integer index. The index does not need to be a compile-time constant.
+Ownership semantics mirror `tuple_extract`: the instruction forwards
+`None` or `Guaranteed` ownership from its aggregate operand.
+
+`vector_extract` is a high-level SIL construct that is expanded into
+lower-level address-based projections (e.g. via `vector_base_addr` and
+`index_addr`) by a mandatory SIL pass before IRGen. IRGen itself does not
+lower `vector_extract` directly.
+
 
 ### ref_element_addr
 

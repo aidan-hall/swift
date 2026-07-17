@@ -5804,49 +5804,9 @@ void IRGenSILFunction::visitVectorBaseAddrInst(VectorBaseAddrInst *i) {
 }
 
 void IRGenSILFunction::visitVectorExtractInst(VectorExtractInst *i) {
-  auto &resultTI = getTypeInfo(i->getType());
-  unsigned elementExplosionSize = resultTI.as<LoadableTypeInfo>()
-                                       .getExplosionSize();
-
-  auto *lit = dyn_cast<IntegerLiteralInst>(i->getIndex());
-  if (!lit) {
-    IGM.error(i->getLoc().getSourceLoc(),
-              "vector_extract requires a constant integer index");
-    Explosion undef;
-    emitFakeExplosion(resultTI, undef);
-    setLoweredExplosion(i, undef);
-    return;
-  }
-
-  auto arrayTy = i->getFixedArrayType();
-  auto fixedSize = arrayTy->getFixedInhabitedSize();
-  if (!fixedSize) {
-    IGM.error(i->getLoc().getSourceLoc(),
-              "vector_extract requires a Builtin.FixedArray with a known "
-              "positive number of elements");
-    Explosion undef;
-    emitFakeExplosion(resultTI, undef);
-    setLoweredExplosion(i, undef);
-    return;
-  }
-
-  uint64_t index = lit->getValue().getZExtValue();
-  if (index >= *fixedSize) {
-    IGM.error(i->getLoc().getSourceLoc(),
-              "vector_extract index is out of range");
-    Explosion undef;
-    emitFakeExplosion(resultTI, undef);
-    setLoweredExplosion(i, undef);
-    return;
-  }
-
-  Explosion fullVector = getLoweredExplosion(i->getVector());
-  unsigned begin = static_cast<unsigned>(index) * elementExplosionSize;
-  unsigned end = begin + elementExplosionSize;
-  Explosion output;
-  output.add(fullVector.getRange(begin, end));
-  (void)fullVector.claimAll();
-  setLoweredExplosion(i, output);
+  llvm_unreachable("vector_extract must be lowered to address projections "
+                   "before IRGen; run the LowerVectorExtract pass in the "
+                   "mandatory pipeline");
 }
 
 void IRGenSILFunction::visitRefElementAddrInst(swift::RefElementAddrInst *i) {
