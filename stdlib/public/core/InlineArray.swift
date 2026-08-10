@@ -541,6 +541,18 @@ extension InlineArray where Element: ~Copyable {
       unsafe &_protectedMutableAddress.project(i).pointee
     }
   }
+
+  @available(SwiftStdlib 6.2, *)
+  @_addressableSelf
+  @export(implementation)
+  public subscript(refAtIndex i: Index) -> Ref<Element> {
+    @_transparent
+    @_lifetime(borrow self)
+    get {
+      unsafe Ref(unsafeAddress: _protectedAddress.project(i),
+                 borrowing: self)
+    }
+  }
 }
 
 //===----------------------------------------------------------------------===//

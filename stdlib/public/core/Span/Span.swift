@@ -506,6 +506,18 @@ extension Span where Element: ~Copyable {
     }
   }
 
+  @available(SwiftStdlib 6.2, *)
+  @export(implementation)
+  public subscript(refAtIndex i: Index) -> Ref<Element> {
+    @_transparent
+    @_lifetime(borrow self)
+    get {
+      unsafe Ref(unsafeAddress: UnsafePointer<Element>(
+        _unsafeAddressOfElement(unchecked: i)),
+                 borrowing: self)
+    }
+  }
+
   @unsafe
   @export(implementation)
   internal func _unsafeAddressOfElement(
