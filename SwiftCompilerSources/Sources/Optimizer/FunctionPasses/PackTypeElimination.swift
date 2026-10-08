@@ -53,5 +53,32 @@ let packTypeElimination = FunctionPass(name: "pack-type-elimination") {
 
   if !function.hasOwnership { return }
 
+  tryEliminateOpenedPackElementTypes(in: function, context)
+}
+
+func tryEliminateOpenedPackElementTypes(in function: Function, _ context: FunctionPassContext) {
+  var cloner = Cloner(in: function, context)
+  defer { cloner.deinitialize() }
+
+  /*
+   For each open_pack_element whose type(s) can be substituted:
+   Clone it recursively,
+   
+   */
+
+  var worklist = InstructionWorklist(context)
+  defer { worklist.deinitialize() }
+
+  for case let openPackElementInst as OpenPackElementInst in function.instructions {
+    worklist.pushIfNotVisited(openPackElementInst)
+    cloner.setInsertionPoint(before: openPackElementInst)
+  }
+
+  // for openPackElementInst in openPackElementInsts {
+  //   print(openPackElementInst)
+  //   for use in openPackElementInst.uses {
+  //     print("Use: \(use)")
+  //   }
+  // }
   
 }
