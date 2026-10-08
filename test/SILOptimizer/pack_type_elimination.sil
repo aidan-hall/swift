@@ -1,0 +1,57 @@
+// RUN: %target-sil-opt %s -module-name A -pack-type-elimination | %FileCheck %s
+
+sil_stage canonical
+
+import Builtin
+import Swift
+
+protocol P {
+  associatedtype A
+  func f() -> A
+}
+
+extension P {
+  func f() -> some Any
+}
+
+sil [ossa] @use : $@convention(thin) <T> (@in T) -> ()
+
+// CHECK-LABEL: sil [ossa] @constant_dpi : $@convention(thin) (Builtin.RawPointer) -> () {
+// CHECK:         pointer_to_address %0 to $*Int32
+// CHECK-LABEL: } // end sil function 'constant_dpi'
+sil [ossa] @constant_dpi : $@convention(thin) (Builtin.RawPointer) -> () {
+bb0(%0 : $Builtin.RawPointer):
+  %zero = integer_literal $Builtin.Word, 0
+  %dpi0 = dynamic_pack_index %zero of $Pack{Int32, Int64}
+  %ope0 = open_pack_element %dpi0 of <each T> at <Pack{Int32, Int64}>, shape $each T, id 1
+  %addr = pointer_to_address %0 to $*@pack_element(1) each T
+
+  %res = tuple ()
+  return %res
+}
+
+// CHECK-LABEL: sil [ossa] @dynamic_dpi : $@convention(thin) (Builtin.RawPointer, Builtin.Word) -> () {
+// CHECK:         pointer_to_address %0 to $*Int32
+// CHECK-LABEL: } // end sil function 'dynamic_dpi'
+sil [ossa] @dynamic_dpi : $@convention(thin) (Builtin.RawPointer, Builtin.Word) -> () {
+bb0(%0 : $Builtin.RawPointer, %1 : $Builtin.Word):
+  %dpi0 = dynamic_pack_index %1 of $Pack{Int32, Int64}
+  %ope0 = open_pack_element %dpi0 of <each T> at <Pack{Int32, Int64}>, shape $each T, id 2
+  %addr = pointer_to_address %0 to $*@pack_element(2) each T
+
+  %res = tuple ()
+  return %res
+}
+
+// CHECK-LABEL: sil [ossa] @homogeneous_dpi : $@convention(thin) (Builtin.RawPointer, Builtin.Word) -> () {
+// CHECK:         pointer_to_address %0 to $*Int32
+// CHECK-LABEL: } // end sil function 'homogeneous_dpi'
+sil [ossa] @homogeneous_dpi : $@convention(thin) (Builtin.RawPointer, Builtin.Word) -> () {
+bb0(%0 : $Builtin.RawPointer, %1 : $Builtin.Word):
+  %dpi0 = dynamic_pack_index %1 of $Pack{Int32, Int32}
+  %ope0 = open_pack_element %dpi0 of <each T> at <Pack{Int32, Int32}>, shape $each T, id 3
+  %addr = pointer_to_address %0 to $*@pack_element(3) each T
+
+  %res = tuple ()
+  return %res
+}
