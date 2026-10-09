@@ -2263,8 +2263,8 @@ final public class PackLengthInst : SingleValueInstruction {
 @_semantics("fast_cast")
 public protocol AnyPackIndexInst : SingleValueInstruction {
   var indexedPackType: CanonicalType { get }
-  // The structural index of the accessed component within the pack, if it is
-  // statically known.
+  /// The structural index of the accessed component within the pack, if it is
+  /// statically known.
   var structuralIndex: Int? { get }
 }
 
